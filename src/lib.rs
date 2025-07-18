@@ -71,7 +71,7 @@ impl Source for &str {
                 let st: usize = self.len() / 2 - width / 2;
                 let ed: usize = self.len() / 2 + width / 2 + width % 2;
                 &self[st..ed]
-            },
+            }
         };
 
         sliced
@@ -98,12 +98,12 @@ impl Source for &str {
     }
 
     fn pad_and_push_to_buffer(
-            &self,
-            width: usize,
-            mode: Alignment,
-            symbol: Self::Symbol,
-            buffer: &mut Self::Buffer,
-        ) {
+        &self,
+        width: usize,
+        mode: Alignment,
+        symbol: Self::Symbol,
+        buffer: &mut Self::Buffer,
+    ) {
         if width < self.len() {
             buffer.push_str(self.slice_to_fit(width, mode));
             return;
@@ -153,7 +153,7 @@ mod tests {
     #[test]
     fn pad_str_right() {
         let width = 2;
-        let source: & str = "radagon";
+        let source: &str = "radagon";
         let output: String = pad(source, width, Alignment::Right, '´');
         let expected: &str = "on";
         assert_eq!(expected, output);
@@ -162,7 +162,7 @@ mod tests {
     #[test]
     fn pad_str_center() {
         let width = 6;
-        let source: & str = "radahn";
+        let source: &str = "radahn";
         let output: String = pad(source, width, Alignment::Center, '$');
         let expected: &str = "radahn";
         assert_eq!(expected, output);
@@ -171,7 +171,7 @@ mod tests {
     #[test]
     fn pad_and_push_to_buffer_str_left() {
         let width = 23;
-        let source: & str = "liurna of the lakes";
+        let source: &str = "liurna of the lakes";
         let mut buffer = String::with_capacity(width);
         pad_and_push_to_buffer(source, width, Alignment::Left, '@', &mut buffer);
         let expected: &str = "liurna of the lakes@@@@";
@@ -181,7 +181,7 @@ mod tests {
     #[test]
     fn pad_and_push_to_buffer_str_right() {
         let width = 1;
-        let source: & str = "limgrave";
+        let source: &str = "limgrave";
         let mut buffer = String::with_capacity(width);
         pad_and_push_to_buffer(source, width, Alignment::Right, '*', &mut buffer);
         let expected: &str = "e";
@@ -191,7 +191,7 @@ mod tests {
     #[test]
     fn pad_and_push_to_buffer_str_center() {
         let width = 16;
-        let source: & str = "altus plateu";
+        let source: &str = "altus plateu";
         let mut buffer = String::with_capacity(width);
         pad_and_push_to_buffer(source, width, Alignment::Center, '¡', &mut buffer);
         let expected: &str = "¡¡altus plateu¡¡";

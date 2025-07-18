@@ -1,4 +1,4 @@
-use criterion::{criterion_group, Criterion};
+use criterion::{Criterion, criterion_group};
 use padder::*;
 
 use std::hint::black_box;
@@ -21,7 +21,6 @@ pub fn str_pad_100_left(c: &mut Criterion) {
     c.bench_function("format! 100 la", |b| {
         b.iter(|| black_box(format!("{:<width$}", "praise the sun!", width = width)))
     });
-
 }
 
 pub fn str_pad_1000_left(c: &mut Criterion) {
@@ -32,7 +31,6 @@ pub fn str_pad_1000_left(c: &mut Criterion) {
     c.bench_function("format! 1000 la", |b| {
         b.iter(|| black_box(format!("{:<width$}", "solaire is awesome", width = width)))
     });
-
 }
 
 pub fn str_pad_10000_left(c: &mut Criterion) {
@@ -41,9 +39,14 @@ pub fn str_pad_10000_left(c: &mut Criterion) {
         b.iter(|| black_box("don't you dare go hollow..!!#\"".pad(width, Alignment::Left, 'ø')))
     });
     c.bench_function("format! 10000 la", |b| {
-        b.iter(|| black_box(format!("{:<width$}", "don't you dare go hollow..!!#\"", width = width)))
+        b.iter(|| {
+            black_box(format!(
+                "{:<width$}",
+                "don't you dare go hollow..!!#\"",
+                width = width
+            ))
+        })
     });
-
 }
 
 pub fn str_pad_25000_left(c: &mut Criterion) {
@@ -55,7 +58,6 @@ pub fn str_pad_25000_left(c: &mut Criterion) {
         b.iter(|| black_box(format!("{:<width$}", "東風 ぬが ㅀㆈ", width = width)))
     });
 }
-
 
 pub fn str_pad_50000_left(c: &mut Criterion) {
     let width: usize = 50_000;
