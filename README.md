@@ -1,6 +1,6 @@
 <div align="center">
 
-#padder
+# padder
 ##### Highly efficient data formatting and padding crate for Rust.
 
 </div>
