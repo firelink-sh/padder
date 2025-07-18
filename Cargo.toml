@@ -33,3 +33,10 @@ serde_json = { version = "1.0.141", optional = true }
 [features]
 default = []
 serde = [ "dep:serde", "dep:serde_json" ]
+
+[[bench]]
+name = "bench_main"
+harness = false
+
+[dev-dependencies]
+criterion = "0.6.0"
