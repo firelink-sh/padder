@@ -1,0 +1,35 @@
+[package]
+name = "padder"
+version = "2.0.0"
+edition = "2024"
+description = "Highly efficient data formatting and padding crate for Rust."
+authors = [
+    "Wilhelm Ågren <wilhelm@firelink.sh>",
+]
+readme = "README.md"
+license = "MIT OR APACHE"
+homepage = "https://github.com/firelink-sh/padder"
+repository = "https://github.com/firelink-sh/padder"
+
+include = [
+    "**/*.rs",
+    "Cargo.toml",
+    "LICENSE-APACHE",
+    "LICENSE-MIT",
+    "README.md",
+]
+
+[lib]
+name = "padder"
+path = "src/lib.rs"
+test = true
+bench = true
+crate-type = [ "lib" ]
+
+[dependencies]
+serde = { version = "1.0.219", features = ["derive"], optional = true }
+serde_json = { version = "1.0.141", optional = true }
+
+[features]
+default = []
+serde = [ "dep:serde", "dep:serde_json" ]
