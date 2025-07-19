@@ -40,11 +40,13 @@ impl Alignment {
 
 pub trait Source {
     type Symbol;
-    type Slice;
+    type Slice<'a>: ?Sized
+    where
+        Self: 'a;
     type Buffer;
     type Output;
 
-    fn slice_to_fit(&self, width: usize, mode: Alignment) -> Self::Slice;
+    fn slice_to_fit<'a>(&'a self, width: usize, mode: Alignment) -> Self::Slice<'a>;
 
     fn pad(&self, width: usize, mode: Alignment, symbol: Self::Symbol) -> Self::Output;
 
@@ -59,12 +61,12 @@ pub trait Source {
 
 impl Source for &str {
     type Symbol = char;
-    type Slice = Self;
+    type Slice<'a> = Self;
     type Buffer = String;
     type Output = String;
 
-    fn slice_to_fit<'a>(&'a self, width: usize, mode: Alignment) -> Self::Slice {
-        let sliced: &str = match mode {
+    fn slice_to_fit<'a>(&'a self, width: usize, mode: Alignment) -> Self::Slice<'a> {
+        match mode {
             Alignment::Left => &self[0..width],
             Alignment::Right => &self[(self.len() - width)..],
             Alignment::Center => {
@@ -72,14 +74,12 @@ impl Source for &str {
                 let ed: usize = self.len() / 2 + width / 2 + width % 2;
                 &self[st..ed]
             }
-        };
-
-        sliced
+        }
     }
 
     fn pad(&self, width: usize, mode: Alignment, symbol: Self::Symbol) -> Self::Output {
         if width < self.len() {
-            return self.slice_to_fit(width, mode).into();
+            return self.slice_to_fit(width, mode).to_string();
         }
 
         let diff: usize = width - self.len();
@@ -87,7 +87,7 @@ impl Source for &str {
             return self.to_string();
         }
 
-        let pad_range = mode.pad_range(diff);
+        let pad_range: PadRange = mode.pad_range(diff);
         let mut output = String::with_capacity(width);
 
         (0..pad_range.left()).for_each(|_| output.push(symbol));
@@ -115,10 +115,74 @@ impl Source for &str {
             return;
         }
 
-        let pad_range = mode.pad_range(diff);
+        let pad_range: PadRange = mode.pad_range(diff);
 
         (0..pad_range.left()).for_each(|_| buffer.push(symbol));
         buffer.push_str(self);
+        (0..pad_range.right()).for_each(|_| buffer.push(symbol));
+    }
+}
+
+impl Source for String {
+    type Symbol = char;
+    type Slice<'a> = &'a str;
+    type Buffer = String;
+    type Output = String;
+
+    fn slice_to_fit<'a>(&'a self, width: usize, mode: Alignment) -> Self::Slice<'a> {
+        match mode {
+            Alignment::Left => &self[0..width],
+            Alignment::Right => &self[(self.len() - width)..],
+            Alignment::Center => {
+                let st: usize = self.len() / 2 - width / 2;
+                let ed: usize = self.len() / 2 + width / 2 + width % 2;
+                &self[st..ed]
+            }
+        }
+    }
+
+    fn pad(&self, width: usize, mode: Alignment, symbol: Self::Symbol) -> Self::Output {
+        if width < self.len() {
+            return self.slice_to_fit(width, mode).to_string();
+        }
+
+        let diff: usize = width - self.len();
+        if diff == 0 {
+            return self.clone();
+        }
+
+        let pad_range: PadRange = mode.pad_range(diff);
+        let mut output = String::with_capacity(width);
+
+        (0..pad_range.left()).for_each(|_| output.push(symbol));
+        output.push_str(&self);
+        (0..pad_range.right()).for_each(|_| output.push(symbol));
+
+        output
+    }
+
+    fn pad_and_push_to_buffer(
+        &self,
+        width: usize,
+        mode: Alignment,
+        symbol: Self::Symbol,
+        buffer: &mut Self::Buffer,
+    ) {
+        if width < self.len() {
+            buffer.push_str(self.slice_to_fit(width, mode));
+            return;
+        }
+
+        let diff: usize = width - self.len();
+        if diff == 0 {
+            buffer.push_str(&self);
+            return;
+        }
+
+        let pad_range: PadRange = mode.pad_range(diff);
+
+        (0..pad_range.left()).for_each(|_| buffer.push(symbol));
+        buffer.push_str(&self);
         (0..pad_range.right()).for_each(|_| buffer.push(symbol));
     }
 }
@@ -226,6 +290,23 @@ mod tests {
     }
 
     #[test]
+    fn str_pad_same_width() {
+        let width: usize = 4; // ¶ is 2 bytes
+        let source: &str = "¶¶";
+        let output: String = source.pad(width, Alignment::Left, '¨');
+        assert_eq!(source, output);
+    }
+
+    #[test]
+    fn str_pad_sliced() {
+        let width: usize = 6;
+        let source: &str = "  ¡@£   "; // ¡ = 2 bytes, @ = 1 byte, £ = 2 bytes
+        let output: String = source.pad(width, Alignment::Center, '¨');
+        let expected: &str = "¡@£ ";
+        assert_eq!(expected, output);
+    }
+
+    #[test]
     fn str_pad_to_buffer_left() {
         let width: usize = 8;
         let source: &str = "Solaire";
@@ -253,5 +334,49 @@ mod tests {
         source.pad_and_push_to_buffer(width, Alignment::Center, 'ツ', &mut buffer);
         let expected: &str = "ツツツツseKiroツツツツツ";
         assert_eq!(expected, buffer);
+    }
+
+    #[test]
+    fn string_pad_left() {
+        let width: usize = 7;
+        let source = String::from("coffee");
+        let output: String = source.pad(width, Alignment::Left, ';');
+        let expected: &str = "coffee;";
+        assert_eq!(expected, output);
+    }
+
+    #[test]
+    fn string_pad_right() {
+        let width: usize = 9;
+        let source = String::from("ps5");
+        let output: String = source.pad(width, Alignment::Right, '±');
+        let expected: &str = "±±±±±±ps5";
+        assert_eq!(expected, output);
+    }
+
+    #[test]
+    fn string_pad_center() {
+        let width: usize = 31;
+        let source = String::from("you are not prepared");
+        let output: String = source.pad(width, Alignment::Center, '§');
+        let expected: &str = "§§§§§you are not prepared§§§§§§";
+        assert_eq!(expected, output);
+    }
+
+    #[test]
+    fn string_pad_sliced() {
+        let width: usize = 2;
+        let source = String::from("123489700+8471983kbnlajvbroiaye87r687¨ä¨*ÄÂ*ÅWoU)P(FU893y");
+        let output: String = source.pad(width, Alignment::Left, '|');
+        let expected: &str = "12";
+        assert_eq!(expected, output);
+    }
+
+    #[test]
+    fn string_pad_same_width() {
+        let width: usize = 3;
+        let source = String::from("123");
+        let output: String = source.pad(width, Alignment::Left, '8');
+        assert_eq!(source, output);
     }
 }
