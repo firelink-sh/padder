@@ -28,6 +28,70 @@ impl Alignment {
     }
 }
 
+// Maybe we can get even better peformance by opertaing on mutable Strings/Vecs instead
+// of creating new once...
+pub trait MutableSource {
+    type Symbol;
+    type Buffer;
+
+    fn pad(&mut self, width: usize, mode: Alignment, symbol: Self::Symbol);
+    fn pad_to_buffer(
+        &self,
+        width: usize,
+        mode: Alignment,
+        symbol: Self::Symbol,
+        buffer: &mut Self::Buffer,
+    );
+}
+
+impl MutableSource for &mut String {
+    type Symbol = char;
+    type Buffer = String;
+
+    fn pad(&mut self, width: usize, mode: Alignment, symbol: Self::Symbol) {
+        if width < self.len() {
+            // this is tricky?
+            todo!()
+        }
+
+        let n_chars_current: usize = self.chars().count();
+        let n_bytes_previous: usize = self.len();
+
+        let n_chars_diff: usize = width - n_chars_current;
+        if n_chars_diff == 0 {
+            return;
+        }
+
+        // Allocates the exact amount we request, capacity will be
+        // greater than or equal to `self.len() + n_chars_diff`.
+        self.reserve_exact(n_chars_diff * symbol.len_utf8());
+
+        // insert is an `O(n)` operation... maybe just faster to allocate a new one?
+        let (n_l_pads, n_r_pads): (usize, usize) = mode.pad_range(n_chars_diff);
+        // (0..n_l_pads).for_each(|idx| self.insert(idx, symbol));
+
+        // Maybe if we build a &str first with the symbol and then insert_str,
+        // but then we allocate a new string
+        let l_str = std::iter::repeat_n(symbol, n_l_pads).collect::<String>();
+        let r_str = std::iter::repeat_n(symbol, n_r_pads).collect::<String>();
+
+        let l_str_bytes: usize = l_str.len();
+        self.insert_str(0, &l_str);
+        self.insert_str(l_str_bytes + n_bytes_previous, &r_str);
+    }
+
+    #[allow(unused_variables)]
+    fn pad_to_buffer(
+        &self,
+        width: usize,
+        mode: Alignment,
+        symbol: Self::Symbol,
+        buffer: &mut Self::Buffer,
+    ) {
+        todo!()
+    }
+}
+
 pub trait Source {
     type Symbol;
     type Slice<'a>: ?Sized
@@ -730,5 +794,20 @@ mod tests {
         let expected = Vec::from(&[190u8, 1, 98, 190, 9, 9]);
         assert_eq!(expected.capacity(), buffer.capacity());
         assert_eq!(expected, buffer);
+    }
+
+    #[test]
+    fn mut_string_pad_left() {
+        let width: usize = 10;
+        let mut source = String::with_capacity(5);
+        source.push_str("abcde");
+        let mut expected = String::with_capacity(width);
+        expected.push_str("11abcde111");
+        (&mut source).pad(width, Alignment::Center, '1');
+        assert_eq!(expected.capacity(), source.capacity());
+        assert_eq!(width, source.chars().count());
+        assert_eq!(width, source.len());
+        assert_eq!(width, source.capacity());
+        assert_eq!(expected, source);
     }
 }
