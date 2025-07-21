@@ -155,7 +155,7 @@ impl Source for String {
         let mut output = String::with_capacity(width);
 
         (0..pad_range.left()).for_each(|_| output.push(symbol));
-        output.push_str(&self);
+        output.push_str(self);
         (0..pad_range.right()).for_each(|_| output.push(symbol));
 
         output
@@ -175,14 +175,14 @@ impl Source for String {
 
         let diff: usize = width - self.len();
         if diff == 0 {
-            buffer.push_str(&self);
+            buffer.push_str(self);
             return;
         }
 
         let pad_range: PadRange = mode.pad_range(diff);
 
         (0..pad_range.left()).for_each(|_| buffer.push(symbol));
-        buffer.push_str(&self);
+        buffer.push_str(self);
         (0..pad_range.right()).for_each(|_| buffer.push(symbol));
     }
 }
