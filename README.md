@@ -3,6 +3,8 @@
 # padder
 ##### Highly efficient data formatting and padding crate for Rust.
 
+[![CI](https://github.com/firelink-sh/padder/actions/workflows/ci.yml/badge.svg)](https://github.com/firelink-sh/padder/actions/workflows/ci.yml)
+
 </div>
 
 
