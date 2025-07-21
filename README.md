@@ -8,6 +8,5 @@
 
 TODOS:
 
-- to support unicode-aware padding, look into using 'unicode-width'
-  - or just go with `char.len_utf8()` and based on that calculate how much to allocate etc.
+- continue implementing `MutableSource` - we might get some crisp performance
 - to support numeric formatting, look into using 'num-format'
