@@ -1,5 +1,4 @@
 use criterion::{Criterion, criterion_group};
-use padder::*;
 
 use std::hint::black_box;
 
