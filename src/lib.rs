@@ -9,6 +9,7 @@ mod mutable_source;
 mod source;
 
 pub use alignment::{Alignment, Pads};
+pub use mutable_source::MutableSource;
 pub use source::Source;
 
 /*

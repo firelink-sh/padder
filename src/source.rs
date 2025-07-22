@@ -290,7 +290,7 @@ where
 }
 
 impl<T> Source for &[T]
-where 
+where
     T: Copy + Sized,
 {
     type Symbol = T;
@@ -334,12 +334,12 @@ where
     }
 
     fn pad_to_buffer(
-            &self,
-            width: usize,
-            mode: Alignment,
-            symbol: Self::Symbol,
-            buffer: &mut Self::Output,
-        ) {
+        &self,
+        width: usize,
+        mode: Alignment,
+        symbol: Self::Symbol,
+        buffer: &mut Self::Output,
+    ) {
         if width < self.len() {
             buffer.extend_from_slice(self.slice(width, mode));
             return;
@@ -740,9 +740,9 @@ mod tests_slice {
         let source: &[DummyStruct] = &[DummyStruct { a: 2, b: 3 }];
         let output = source.pad(width, Alignment::Left, DummyStruct { a: 4, b: 5 });
         let expected = Vec::from(&[
-            DummyStruct { a: 2, b: 3},
-            DummyStruct { a: 4, b: 5},
-            DummyStruct { a: 4, b: 5},
+            DummyStruct { a: 2, b: 3 },
+            DummyStruct { a: 4, b: 5 },
+            DummyStruct { a: 4, b: 5 },
         ]);
         assert_eq!(expected.capacity(), output.capacity());
         assert_eq!(expected.len(), output.len());
@@ -755,9 +755,9 @@ mod tests_slice {
         let source: &[DummyStruct] = &[DummyStruct { a: 2, b: 3 }];
         let output = source.pad(width, Alignment::Right, DummyStruct { a: 4, b: 5 });
         let expected = Vec::from(&[
-            DummyStruct { a: 4, b: 5},
-            DummyStruct { a: 4, b: 5},
-            DummyStruct { a: 2, b: 3},
+            DummyStruct { a: 4, b: 5 },
+            DummyStruct { a: 4, b: 5 },
+            DummyStruct { a: 2, b: 3 },
         ]);
         assert_eq!(expected.capacity(), output.capacity());
         assert_eq!(expected.len(), output.len());
@@ -770,9 +770,9 @@ mod tests_slice {
         let source: &[DummyStruct] = &[DummyStruct { a: 2, b: 3 }];
         let output = source.pad(width, Alignment::Center, DummyStruct { a: 4, b: 5 });
         let expected = Vec::from(&[
-            DummyStruct { a: 4, b: 5},
-            DummyStruct { a: 2, b: 3},
-            DummyStruct { a: 4, b: 5},
+            DummyStruct { a: 4, b: 5 },
+            DummyStruct { a: 2, b: 3 },
+            DummyStruct { a: 4, b: 5 },
         ]);
         assert_eq!(expected.capacity(), output.capacity());
         assert_eq!(expected.len(), output.len());
@@ -785,10 +785,10 @@ mod tests_slice {
         let source: &[DummyStruct] = &[DummyStruct { a: 2, b: 3 }];
         let output = source.pad(width, Alignment::Center, DummyStruct { a: 4, b: 5 });
         let expected = Vec::from(&[
-            DummyStruct { a: 4, b: 5},
-            DummyStruct { a: 2, b: 3},
-            DummyStruct { a: 4, b: 5},
-            DummyStruct { a: 4, b: 5},
+            DummyStruct { a: 4, b: 5 },
+            DummyStruct { a: 2, b: 3 },
+            DummyStruct { a: 4, b: 5 },
+            DummyStruct { a: 4, b: 5 },
         ]);
         assert_eq!(expected.capacity(), output.capacity());
         assert_eq!(expected.len(), output.len());
