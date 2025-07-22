@@ -54,6 +54,41 @@ impl MutableSource for &mut String {
     }
 }
 
+impl<T> MutableSource for &mut Vec<T>
+where
+    T: Copy + Sized,
+{
+    type Symbol = T;
+    type Buffer = Self;
+
+    fn pad(&mut self, width: usize, mode: Alignment, symbol: Self::Symbol) {
+        if width < self.len() {
+            todo!()
+        }
+
+        let n_bytes_diff: usize = width - self.len();
+        if n_bytes_diff == 0 {
+            return;
+        }
+
+        let n_bytes_original: usize = self.len();
+        self.reserve_exact(n_bytes_diff);
+
+        let pads = mode.pads(n_bytes_diff);
+        for _ in 0..pads.right() {
+            self.push(symbol);
+        }
+
+        unsafe {
+            self.set_len(n_bytes_original + n_bytes_diff);
+            self.copy_within(0..(n_bytes_original + pads.right()), pads.left());
+            for byte_offset in 0..pads.left() {
+                self[byte_offset] = symbol;
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests_string {
     use super::*;
@@ -97,6 +132,55 @@ mod tests_string {
         let mut source = String::from("實real實");
         (&mut source).pad(width, Alignment::Center, '實');
         let expected = String::from("實實實實實實real實實實實實實");
+        assert_eq!(expected.capacity(), source.capacity());
+        assert_eq!(expected.len(), source.len());
+        assert_eq!(expected, source);
+    }
+}
+
+#[cfg(test)]
+mod tests_vec {
+    use super::*;
+
+    #[test]
+    fn pad_left() {
+        let width: usize = 4;
+        let mut source: Vec<u32> = Vec::from(&[1u32, 2, 3]);
+        (&mut source).pad(width, Alignment::Left, 1337);
+        let expected: Vec<u32> = Vec::from(&[1u32, 2, 3, 1337]);
+        assert_eq!(expected.capacity(), source.capacity());
+        assert_eq!(expected.len(), source.len());
+        assert_eq!(expected, source);
+    }
+
+    #[test]
+    fn pad_right() {
+        let width: usize = 6;
+        let mut source: Vec<i32> = Vec::from(&[1i32, 2, 3]);
+        (&mut source).pad(width, Alignment::Right, -1998);
+        let expected: Vec<i32> = Vec::from(&[-1998i32, -1998, -1998, 1, 2, 3]);
+        assert_eq!(expected.capacity(), source.capacity());
+        assert_eq!(expected.len(), source.len());
+        assert_eq!(expected, source);
+    }
+
+    #[test]
+    fn pad_center_odd() {
+        let width: usize = 6;
+        let mut source: Vec<char> = Vec::from(&['😺', '2', '¡']);
+        (&mut source).pad(width, Alignment::Center, '🐛');
+        let expected: Vec<char> = Vec::from(&['🐛', '😺', '2', '¡', '🐛', '🐛']);
+        assert_eq!(expected.capacity(), source.capacity());
+        assert_eq!(expected.len(), source.len());
+        assert_eq!(expected, source);
+    }
+
+    #[test]
+    fn pad_center_even() {
+        let width: usize = 7;
+        let mut source: Vec<char> = Vec::from(&['😺', '2', '¡']);
+        (&mut source).pad(width, Alignment::Center, '🐛');
+        let expected: Vec<char> = Vec::from(&['🐛', '🐛', '😺', '2', '¡', '🐛', '🐛']);
         assert_eq!(expected.capacity(), source.capacity());
         assert_eq!(expected.len(), source.len());
         assert_eq!(expected, source);
