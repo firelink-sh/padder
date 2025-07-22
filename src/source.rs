@@ -56,6 +56,7 @@ impl Source for &str {
                     }
                     if idx == ed_idx {
                         ed_byte = byte_offset;
+                        break;
                     }
                 }
             }
@@ -155,6 +156,7 @@ impl Source for String {
                     }
                     if idx == ed_idx {
                         ed_byte = byte_offset;
+                        break;
                     }
                 }
             }

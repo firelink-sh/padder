@@ -13,39 +13,74 @@ impl MutableSource for &mut String {
     type Buffer = Self;
 
     fn pad(&mut self, width: usize, mode: Alignment, symbol: Self::Symbol) {
-        let n_chars_current: usize = self.chars().count();
-        if width < n_chars_current {
-            // vad vill vi göra här?
-            // ...
-            // beroende på `mode`
-            //    Left => då kan vi
-            //      self.truncate()
-            //      self.shrink_to_fit()
+        let n_chars_original: usize = self.chars().count();
+        let n_bytes_original: usize = self.len();
+
+        if width < n_chars_original {
+            let byte_offset_trunc: usize;
             match mode {
+                // `String.truncate()` removes from the right - so no need to
+                // perform any `buf.copy_whithin()` shenanigans.
                 Alignment::Left => {
-                    let ed_byte = self
+                    byte_offset_trunc = self
                         .char_indices()
                         .nth(width)
                         .map(|(byte_offset, _)| byte_offset)
-                        .expect("the String did not contain enough chars");
-                    // `String.truncate()` removes from the right.
-                    self.truncate(ed_byte);
+                        .expect("the String did not contain enough chars!");
                 }
-                Alignment::Right => unsafe {
-                    let buf = self.as_mut_vec();
-                },
-                Alignment::Center => todo!(),
+                Alignment::Right => {
+                    let byte_offset = self
+                        .char_indices()
+                        .rev()
+                        .nth(width - 1)
+                        .map(|(byte_offset, _)| byte_offset)
+                        .expect("the String did not contain enough chars!");
+
+                    byte_offset_trunc = n_bytes_original - byte_offset;
+                    unsafe {
+                        let buf = self.as_mut_vec();
+                        buf.copy_within(byte_offset.., 0);
+                        buf.set_len(byte_offset_trunc);
+                    }
+                }
+                Alignment::Center => {
+                    let st_idx: usize = (n_chars_original - width) / 2;
+                    let ed_idx: usize = st_idx + width;
+
+                    let mut st_byte: usize = 0;
+                    let mut ed_byte: usize = self.len();
+
+                    for (idx, (byte_offset, _)) in self.char_indices().enumerate() {
+                        if idx == st_idx {
+                            st_byte = byte_offset;
+                        }
+                        if idx == ed_idx {
+                            ed_byte = byte_offset;
+                            break;
+                        }
+                    }
+
+                    byte_offset_trunc = ed_byte - st_byte;
+                    unsafe {
+                        let buf = self.as_mut_vec();
+                        buf.copy_within(st_byte..ed_byte, 0);
+                        buf.set_len(byte_offset_trunc);
+                    }
+                }
             };
+
+            self.truncate(byte_offset_trunc);
+            // Release any unused memory after truncate.
             self.shrink_to_fit();
+            return;
         }
 
-        let n_chars_diff: usize = width - n_chars_current;
+        let n_chars_diff: usize = width - n_chars_original;
         if n_chars_diff == 0 {
             return;
         }
 
         let n_bytes_symbol: usize = symbol.len_utf8();
-        let n_bytes_original: usize = self.len();
         let n_bytes_diff: usize = n_chars_diff * n_bytes_symbol;
         self.reserve_exact(n_bytes_diff);
 
@@ -171,6 +206,50 @@ mod tests_string {
         let mut source = String::from("實real實");
         (&mut source).pad(width, Alignment::Center, '實');
         let expected = String::from("實實實實實實real實實實實實實");
+        assert_eq!(expected.capacity(), source.capacity());
+        assert_eq!(expected.len(), source.len());
+        assert_eq!(expected, source);
+    }
+
+    #[test]
+    fn truncate_left() {
+        let width: usize = 3;
+        let mut source = String::from("實real實");
+        (&mut source).pad(width, Alignment::Left, '實');
+        let expected = String::from("實re");
+        assert_eq!(expected.capacity(), source.capacity());
+        assert_eq!(expected.len(), source.len());
+        assert_eq!(expected, source);
+    }
+
+    #[test]
+    fn truncate_right() {
+        let width: usize = 5;
+        let mut source = String::from("實real實");
+        (&mut source).pad(width, Alignment::Right, '實');
+        let expected = String::from("real實");
+        assert_eq!(expected.capacity(), source.capacity());
+        assert_eq!(expected.len(), source.len());
+        assert_eq!(expected, source);
+    }
+
+    #[test]
+    fn truncate_center_odd() {
+        let width: usize = 6;
+        let mut source = String::from("實vamos實carlito實");
+        (&mut source).pad(width, Alignment::Center, '實');
+        let expected = String::from("os實car");
+        assert_eq!(expected.capacity(), source.capacity());
+        assert_eq!(expected.len(), source.len());
+        assert_eq!(expected, source);
+    }
+
+    #[test]
+    fn truncate_center_even() {
+        let width: usize = 7;
+        let mut source = String::from("實vamos實carlito實");
+        (&mut source).pad(width, Alignment::Center, '實');
+        let expected = String::from("os實carl");
         assert_eq!(expected.capacity(), source.capacity());
         assert_eq!(expected.len(), source.len());
         assert_eq!(expected, source);
@@ -311,5 +390,4 @@ mod tests_vec {
         assert_eq!(expected.len(), source.len());
         assert_eq!(expected, source);
     }
-
 }
