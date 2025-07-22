@@ -15,7 +15,28 @@ impl MutableSource for &mut String {
     fn pad(&mut self, width: usize, mode: Alignment, symbol: Self::Symbol) {
         let n_chars_current: usize = self.chars().count();
         if width < n_chars_current {
-            todo!()
+            // vad vill vi göra här?
+            // ...
+            // beroende på `mode`
+            //    Left => då kan vi
+            //      self.truncate()
+            //      self.shrink_to_fit()
+            match mode {
+                Alignment::Left => {
+                    let ed_byte = self
+                        .char_indices()
+                        .nth(width)
+                        .map(|(byte_offset, _)| byte_offset)
+                        .expect("the String did not contain enough chars");
+                    // `String.truncate()` removes from the right.
+                    self.truncate(ed_byte);
+                }
+                Alignment::Right => unsafe {
+                    let buf = self.as_mut_vec();
+                },
+                Alignment::Center => todo!(),
+            };
+            self.shrink_to_fit();
         }
 
         let n_chars_diff: usize = width - n_chars_current;
@@ -63,7 +84,23 @@ where
 
     fn pad(&mut self, width: usize, mode: Alignment, symbol: Self::Symbol) {
         if width < self.len() {
-            todo!()
+            match mode {
+                // For aligning left we don't have to do anything - the
+                // `truncate()` method deals with this for us.
+                Alignment::Left => {}
+                Alignment::Right => {
+                    // Move `width` amount of bytes to the left.
+                    let n_bytes_to_trunc: usize = self.len() - width;
+                    self.copy_within(n_bytes_to_trunc.., 0);
+                }
+                Alignment::Center => {
+                    let st_idx: usize = (self.len() - width) / 2;
+                    let ed_idx: usize = st_idx + width;
+                    self.copy_within(st_idx..ed_idx, 0);
+                }
+            }
+            self.truncate(width);
+            self.shrink_to_fit();
         }
 
         let n_bytes_diff: usize = width - self.len();
@@ -79,12 +116,14 @@ where
             self.push(symbol);
         }
 
+        // Safety: n_bytes_original + n_bytes_diff <= self.capacity()
         unsafe {
             self.set_len(n_bytes_original + n_bytes_diff);
-            self.copy_within(0..(n_bytes_original + pads.right()), pads.left());
-            for byte_offset in 0..pads.left() {
-                self[byte_offset] = symbol;
-            }
+        }
+
+        self.copy_within(0..(n_bytes_original + pads.right()), pads.left());
+        for byte_offset in 0..pads.left() {
+            self[byte_offset] = symbol;
         }
     }
 }
@@ -185,4 +224,92 @@ mod tests_vec {
         assert_eq!(expected.len(), source.len());
         assert_eq!(expected, source);
     }
+
+    #[test]
+    fn truncate_left() {
+        let width: usize = 2;
+        let mut source: Vec<char> = Vec::from(&['😺', '2', '¡']);
+        (&mut source).pad(width, Alignment::Left, ' ');
+        let expected: Vec<char> = Vec::from(&['😺', '2']);
+        assert_eq!(expected.capacity(), source.capacity());
+        assert_eq!(expected.len(), source.len());
+        assert_eq!(expected, source);
+    }
+
+    #[derive(Debug, Copy, Clone, PartialEq)]
+    pub struct DummyStruct {
+        a: bool,
+    }
+
+    #[test]
+    fn truncate_right() {
+        let width: usize = 3;
+        let mut source: Vec<DummyStruct> = Vec::from(&[
+            DummyStruct { a: true },
+            DummyStruct { a: false },
+            DummyStruct { a: false },
+            DummyStruct { a: false },
+            DummyStruct { a: true },
+        ]);
+        (&mut source).pad(width, Alignment::Right, DummyStruct { a: false });
+        let expected: Vec<DummyStruct> = Vec::from(&[
+            DummyStruct { a: false },
+            DummyStruct { a: false },
+            DummyStruct { a: true },
+        ]);
+
+        assert_eq!(expected.capacity(), source.capacity());
+        assert_eq!(expected.len(), source.len());
+        assert_eq!(expected, source);
+    }
+
+    #[test]
+    fn truncate_center_odd() {
+        let width: usize = 4;
+        let mut source: Vec<&str> = Vec::from(&[
+            "yooo",
+            "radahn",
+            "this is a longer string hihi",
+            "beethoven",
+            "mozart",
+            "chopin",
+            "rachmaninoff",
+        ]);
+        (&mut source).pad(width, Alignment::Center, "padded");
+        let expected: Vec<&str> = Vec::from(&[
+            "radahn",
+            "this is a longer string hihi",
+            "beethoven",
+            "mozart",
+        ]);
+        assert_eq!(expected.capacity(), source.capacity());
+        assert_eq!(expected.len(), source.len());
+        assert_eq!(expected, source);
+    }
+
+    #[test]
+    fn truncate_center_even() {
+        let width: usize = 5;
+        let mut source: Vec<&str> = Vec::from(&[
+            "yooo",
+            "radahn",
+            "this is a longer string hihi",
+            "beethoven",
+            "mozart",
+            "chopin",
+            "rachmaninoff",
+        ]);
+        (&mut source).pad(width, Alignment::Center, "padded");
+        let expected: Vec<&str> = Vec::from(&[
+            "radahn",
+            "this is a longer string hihi",
+            "beethoven",
+            "mozart",
+            "chopin",
+        ]);
+        assert_eq!(expected.capacity(), source.capacity());
+        assert_eq!(expected.len(), source.len());
+        assert_eq!(expected, source);
+    }
+
 }
