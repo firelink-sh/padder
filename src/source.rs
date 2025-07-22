@@ -289,6 +289,77 @@ where
     }
 }
 
+impl<T> Source for &[T]
+where 
+    T: Copy + Sized,
+{
+    type Symbol = T;
+    type Buffer = Vec<T>;
+    type Output = Vec<T>;
+    type Slice<'a>
+        = &'a [T]
+    where
+        T: 'a;
+
+    fn slice<'a>(&'a self, width: usize, mode: Alignment) -> Self::Slice<'a> {
+        match mode {
+            Alignment::Left => &self[..width],
+            Alignment::Right => &self[(self.len() - width)..],
+            Alignment::Center => {
+                let st_idx: usize = (self.len() - width) / 2;
+                let ed_idx: usize = st_idx + width;
+                &self[st_idx..ed_idx]
+            }
+        }
+    }
+
+    fn pad(&self, width: usize, mode: Alignment, symbol: Self::Symbol) -> Self::Output {
+        if width < self.len() {
+            return self.slice(width, mode).to_vec();
+        }
+
+        let n_bytes_diff: usize = width - self.len();
+        if n_bytes_diff == 0 {
+            return self.to_vec();
+        }
+
+        let mut output = Vec::with_capacity(width);
+        let pads = mode.pads(n_bytes_diff);
+
+        (0..pads.left()).for_each(|_| output.push(symbol));
+        output.extend_from_slice(self);
+        (0..pads.right()).for_each(|_| output.push(symbol));
+
+        output
+    }
+
+    fn pad_to_buffer(
+            &self,
+            width: usize,
+            mode: Alignment,
+            symbol: Self::Symbol,
+            buffer: &mut Self::Output,
+        ) {
+        if width < self.len() {
+            buffer.extend_from_slice(self.slice(width, mode));
+            return;
+        }
+
+        let n_bytes_diff: usize = width - self.len();
+        if n_bytes_diff == 0 {
+            buffer.extend_from_slice(self);
+            return;
+        }
+
+        buffer.reserve_exact(n_bytes_diff);
+        let pads = mode.pads(n_bytes_diff);
+
+        (0..pads.left()).for_each(|_| buffer.push(symbol));
+        buffer.extend_from_slice(self);
+        (0..pads.right()).for_each(|_| buffer.push(symbol));
+    }
+}
+
 #[cfg(test)]
 mod tests_str {
     use super::*;
@@ -650,5 +721,77 @@ mod tests_vec {
         assert_eq!(expected.len(), buffer.len());
         assert_eq!(expected.capacity(), buffer.capacity());
         assert_eq!(expected, buffer);
+    }
+}
+
+#[cfg(test)]
+mod tests_slice {
+    use super::*;
+
+    #[derive(Debug, Copy, Clone, PartialEq)]
+    struct DummyStruct {
+        a: usize,
+        b: usize,
+    }
+
+    #[test]
+    fn pad_left_struct() {
+        let width: usize = 3;
+        let source: &[DummyStruct] = &[DummyStruct { a: 2, b: 3 }];
+        let output = source.pad(width, Alignment::Left, DummyStruct { a: 4, b: 5 });
+        let expected = Vec::from(&[
+            DummyStruct { a: 2, b: 3},
+            DummyStruct { a: 4, b: 5},
+            DummyStruct { a: 4, b: 5},
+        ]);
+        assert_eq!(expected.capacity(), output.capacity());
+        assert_eq!(expected.len(), output.len());
+        assert_eq!(expected, output);
+    }
+
+    #[test]
+    fn pad_right_struct() {
+        let width: usize = 3;
+        let source: &[DummyStruct] = &[DummyStruct { a: 2, b: 3 }];
+        let output = source.pad(width, Alignment::Right, DummyStruct { a: 4, b: 5 });
+        let expected = Vec::from(&[
+            DummyStruct { a: 4, b: 5},
+            DummyStruct { a: 4, b: 5},
+            DummyStruct { a: 2, b: 3},
+        ]);
+        assert_eq!(expected.capacity(), output.capacity());
+        assert_eq!(expected.len(), output.len());
+        assert_eq!(expected, output);
+    }
+
+    #[test]
+    fn pad_center_even_struct() {
+        let width: usize = 3;
+        let source: &[DummyStruct] = &[DummyStruct { a: 2, b: 3 }];
+        let output = source.pad(width, Alignment::Center, DummyStruct { a: 4, b: 5 });
+        let expected = Vec::from(&[
+            DummyStruct { a: 4, b: 5},
+            DummyStruct { a: 2, b: 3},
+            DummyStruct { a: 4, b: 5},
+        ]);
+        assert_eq!(expected.capacity(), output.capacity());
+        assert_eq!(expected.len(), output.len());
+        assert_eq!(expected, output);
+    }
+
+    #[test]
+    fn pad_center_odd_struct() {
+        let width: usize = 4;
+        let source: &[DummyStruct] = &[DummyStruct { a: 2, b: 3 }];
+        let output = source.pad(width, Alignment::Center, DummyStruct { a: 4, b: 5 });
+        let expected = Vec::from(&[
+            DummyStruct { a: 4, b: 5},
+            DummyStruct { a: 2, b: 3},
+            DummyStruct { a: 4, b: 5},
+            DummyStruct { a: 4, b: 5},
+        ]);
+        assert_eq!(expected.capacity(), output.capacity());
+        assert_eq!(expected.len(), output.len());
+        assert_eq!(expected, output);
     }
 }
