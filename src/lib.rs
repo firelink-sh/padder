@@ -4,6 +4,15 @@
 //! ...
 //!
 
+mod alignment;
+mod mutable_source;
+mod source;
+
+pub use alignment::{Alignment, Pads};
+pub use source::Source;
+
+/*
+
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -28,7 +37,7 @@ impl Alignment {
     }
 }
 
-// Maybe we can get even better peformance by opertaing on mutable Strings/Vecs instead
+// Maybe we can get even better peformance by operating on mutable Strings/Vecs instead
 // of creating new once...
 pub trait MutableSource {
     type Symbol;
@@ -811,3 +820,4 @@ mod tests {
         assert_eq!(expected, source);
     }
 }
+*/
