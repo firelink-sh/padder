@@ -207,16 +207,14 @@ impl MutableSource for &mut String {
 
         let n_bytes_symbol: usize = symbol.len_utf8();
         let n_bytes_diff: usize = n_chars_diff * n_bytes_symbol;
-        self.reserve_exact(n_bytes_diff);
 
         let pads = mode.pads(n_chars_diff);
         let n_bytes_l_pad = pads.left() * n_bytes_symbol;
         let n_bytes_r_pad = pads.right() * n_bytes_symbol;
 
+        self.reserve_exact(n_bytes_diff);
+
         unsafe {
-            // We need to manually update the length of the buffer preemptively, because the
-            // `buf.copy_within()` method checks its own length to validate that we are
-            // allowed to move the contents within the slice.
             let buf: &mut Vec<u8> = self.as_mut_vec();
             buf.set_len(n_bytes_original + n_bytes_diff);
             buf.copy_within(..(n_bytes_original + n_bytes_r_pad), n_bytes_l_pad);
@@ -242,7 +240,6 @@ where
     type Symbol = T;
     type Buffer = Self;
 
-    #[cfg(not(feature = "enable_unsafe"))]
     /// Pads or truncates the buffer to match the specified width with a given alignment.
     ///
     /// If the buffer is longer than `width` (in bytes), it will be truncated according to the `mode`:
@@ -263,68 +260,6 @@ where
     /// let mut v: Vec<char> = vec!['y', 'o', 'o'];
     /// let width: usize = 7;
     /// (&mut v).pad(width, Alignment::Left, '!');  // ['y', 'o', 'o', '!', '!', '!', '!']
-    /// ```
-    ///
-    /// [`insert()`]: Vec::insert()
-    fn pad(&mut self, width: usize, mode: Alignment, symbol: Self::Symbol) {
-        if width < self.len() {
-            match mode {
-                Alignment::Left => {
-                    self.truncate(width);
-                }
-                Alignment::Right => {
-                    let byte_offset_drain: usize = self.len() - width;
-                    self.drain(..byte_offset_drain);
-                }
-                Alignment::Center => {
-                    let byte_offset_drain: usize = (self.len() - width) / 2;
-                    self.drain(..byte_offset_drain);
-                    self.truncate(width);
-                }
-            }
-            self.shrink_to_fit();
-            return;
-        }
-
-        let n_bytes_diff: usize = width - self.len();
-        if n_bytes_diff == 0 {
-            return;
-        }
-
-        let pads = mode.pads(n_bytes_diff);
-        let mut new_v: Vec<T> = std::iter::repeat_n(symbol, pads.left()).collect();
-
-        new_v.extend_from_slice(self);
-        new_v.extend_from_slice(&std::iter::repeat_n(symbol, pads.right()).collect::<Vec<T>>());
-
-        new_v.shrink_to_fit();
-        **self = new_v;
-    }
-
-    #[cfg(feature = "enable_unsafe")]
-    #[inline(never)]
-    /// Pads or truncates the buffer to match the specified width with a given alignment.
-    ///
-    /// If the buffer is longer than `width` (in bytes), it will be truncated according to the `mode`:
-    /// - [`Alignment::Left`]: truncates from the right.
-    /// - [`Alignment::Right`]: truncates from the left.
-    /// - [`Alignment::Center`]: trims equally from both ends (extra byte trimmed from the left if number of bytes to trim is odd).
-    ///
-    /// If the buffer is shorter than `width`, it will be padded using the specified `symbol`:
-    /// - Padding is distributed based on alignment: left, right, or center (extra symbol on the right if number of bytes to pad is odd).
-    /// - This implementation performs no heap allocations to construct the padded version (but introduces `unsafe` code).
-    ///
-    /// The result replaces the original buffer.
-    ///
-    /// # Safety
-    /// This implementation makes use of the [`set_len()`] and [`copy_within()`] methods to directly
-    /// modify the contents of the Vec buffer without having to perform any extra allocations.
-    ///
-    /// This greatly improves performance when padding to large buffers, truncating performance should be unchanged.
-    ///
-    /// # Examples
-    /// ```
-    /// use padder::*;
     ///
     /// #[derive(Debug, Default, Copy, Clone, PartialEq)]
     /// struct DummyStruct {
@@ -365,8 +300,8 @@ where
     ///
     /// assert_eq!(expected, v);
     /// ```
-    /// [`set_len()`]: Vec::set_len
-    /// [`copy_within()`]: https://doc.rust-lang.org/std/primitive.slice.html#method.copy_within
+    ///
+    /// [`insert()`]: Vec::insert()
     fn pad(&mut self, width: usize, mode: Alignment, symbol: Self::Symbol) {
         if width < self.len() {
             match mode {
@@ -392,33 +327,14 @@ where
             return;
         }
 
-        let n_bytes_original: usize = self.len();
         let pads = mode.pads(n_bytes_diff);
+        let mut new_v: Vec<T> = std::iter::repeat_n(symbol, pads.left()).collect();
 
-        self.reserve_exact(n_bytes_diff);
+        new_v.extend_from_slice(self);
+        new_v.extend_from_slice(&std::iter::repeat_n(symbol, pads.right()).collect::<Vec<T>>());
 
-        unsafe {
-            self.set_len(n_bytes_original + n_bytes_diff);
-        }
-
-        if pads.left() > 0 {
-            self.copy_within(..n_bytes_original, pads.left());
-            self.splice(
-                ..pads.left(),
-                std::iter::repeat_n(symbol, pads.left()).collect::<Vec<T>>(),
-            );
-        }
-
-        if pads.right() > 0 {
-            self.splice(
-                (n_bytes_original + pads.left())..,
-                std::iter::repeat_n(symbol, pads.right()).collect::<Vec<T>>(),
-            );
-        }
-
-        // We need to do this because the `std::iter::repeat_n().collect::<Vec<T>>()` function might
-        // allocated a `Vec` with more capacity than is needed (most likely, always).
-        self.shrink_to_fit();
+        new_v.shrink_to_fit();
+        **self = new_v;
     }
 }
 
@@ -429,9 +345,9 @@ mod tests_string {
     #[test]
     fn pad_left() {
         let width: usize = 17;
-        let mut source = String::from("Wilhelm Moberg");
+        let mut source = String::from("Vilhelm Moberg");
         (&mut source).pad(width, Alignment::Left, '@');
-        let expected = String::from("Wilhelm Moberg@@@");
+        let expected = String::from("Vilhelm Moberg@@@");
         assert_eq!(expected.capacity(), source.capacity());
         assert_eq!(expected.len(), source.len());
         assert_eq!(expected, source);
