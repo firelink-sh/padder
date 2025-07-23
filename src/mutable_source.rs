@@ -26,6 +26,7 @@ impl MutableSource for &mut String {
     type Symbol = char;
     type Buffer = Self;
 
+    #[cfg(not(feature = "enable_unsafe"))]
     /// Pads or truncates the string to match the specified width with a given alignment.
     ///
     /// If the string is longer than `width` (in utf8 chars), it will be truncated according to the `mode`:
@@ -54,7 +55,6 @@ impl MutableSource for &mut String {
     /// [`insert()`]: String::insert()
     fn pad(&mut self, width: usize, mode: Alignment, symbol: Self::Symbol) {
         let n_chars_original: usize = self.chars().count();
-
         if width < n_chars_original {
             match mode {
                 Alignment::Left => {
@@ -72,7 +72,7 @@ impl MutableSource for &mut String {
                         .nth(width - 1)
                         .map(|(byte_offset, _)| byte_offset)
                         .expect("the String did not contain enough chars!");
-                    self.drain(0..byte_offset_drain);
+                    self.drain(..byte_offset_drain);
                 }
                 Alignment::Center => {
                     let st_idx: usize = (n_chars_original - width) / 2;
@@ -91,7 +91,7 @@ impl MutableSource for &mut String {
                         }
                     }
 
-                    self.drain(0..st_byte);
+                    self.drain(..st_byte);
                     self.truncate(ed_byte - st_byte);
                 }
             };
@@ -113,6 +113,89 @@ impl MutableSource for &mut String {
         new_s.shrink_to_fit();
         **self = new_s;
     }
+
+    #[cfg(feature = "enable_unsafe")]
+    ///
+    fn pad(&mut self, width: usize, mode: Alignment, symbol: Self::Symbol) {
+        let n_chars_original: usize = self.chars().count();
+        let n_bytes_original: usize = self.len();
+
+        if width < n_chars_original {
+            match mode {
+                Alignment::Left => {
+                    let byte_offset_trunc: usize = self
+                        .char_indices()
+                        .nth(width)
+                        .map(|(byte_offset, _)| byte_offset)
+                        .expect("the String did not contain enough chars!");
+                    self.truncate(byte_offset_trunc);
+                }
+                Alignment::Right => {
+                    let byte_offset_drain: usize = self
+                        .char_indices()
+                        .rev()
+                        .nth(width - 1)
+                        .map(|(byte_offset, _)| byte_offset)
+                        .expect("the String did not contain enough chars!");
+                    self.drain(..byte_offset_drain);
+                }
+                Alignment::Center => {
+                    let st_idx: usize = (n_chars_original - width) / 2;
+                    let ed_idx: usize = st_idx + width;
+
+                    let mut st_byte: usize = 0;
+                    let mut ed_byte: usize = self.len();
+
+                    for (idx, (byte_offset, _)) in self.char_indices().enumerate() {
+                        if idx == st_idx {
+                            st_byte = byte_offset;
+                            continue;
+                        }
+                        if idx == ed_idx {
+                            ed_byte = byte_offset;
+                            break;
+                        }
+                    }
+
+                    self.drain(..st_byte);
+                    self.truncate(ed_byte - st_byte);
+                }
+            }
+            self.shrink_to_fit();
+            return;
+        }
+
+        let n_chars_diff: usize = width - n_chars_original;
+        if n_chars_diff == 0 {
+            return;
+        }
+
+        let n_bytes_symbol: usize = symbol.len_utf8();
+        let n_bytes_diff: usize = n_chars_diff * n_bytes_symbol;
+        self.reserve_exact(n_bytes_diff);
+
+        let pads = mode.pads(n_chars_diff);
+        let n_bytes_l_pad = pads.left() * n_bytes_symbol;
+        let n_bytes_r_pad = pads.right() * n_bytes_symbol;
+
+        for _ in 0..pads.right() {
+            self.push(symbol);
+        }
+
+        unsafe {
+            // We need to manually update the length of the buffer preemptively, because the
+            // `buf.copy_within()` method checks its own length to validate that we are
+            // allowed to move the contents within the slice.
+            let buf: &mut Vec<u8> = self.as_mut_vec();
+            buf.set_len(n_bytes_original + n_bytes_diff);
+            buf.copy_within(..(n_bytes_original + n_bytes_r_pad), n_bytes_l_pad);
+
+            let mut byte_offset: usize = 0;
+            for _ in 0..pads.left() {
+                byte_offset += symbol.encode_utf8(&mut buf[byte_offset..]).len();
+            }
+        }
+    }
 }
 
 impl<T> MutableSource for &mut Vec<T>
@@ -122,6 +205,7 @@ where
     type Symbol = T;
     type Buffer = Self;
 
+    #[cfg(not(feature = "enable_unsafe"))]
     /// Pads or truncates the buffer to match the specified width with a given alignment.
     ///
     /// If the buffer is longer than `width` (in bytes), it will be truncated according to the `mode`:
@@ -153,11 +237,11 @@ where
                 }
                 Alignment::Right => {
                     let byte_offset_drain: usize = self.len() - width;
-                    self.drain(0..byte_offset_drain);
+                    self.drain(..byte_offset_drain);
                 }
                 Alignment::Center => {
                     let byte_offset_drain: usize = (self.len() - width) / 2;
-                    self.drain(0..byte_offset_drain);
+                    self.drain(..byte_offset_drain);
                     self.truncate(width);
                 }
             }
@@ -178,6 +262,51 @@ where
 
         new_v.shrink_to_fit();
         **self = new_v;
+    }
+
+    #[cfg(feature = "enable_unsafe")]
+    ///
+    fn pad(&mut self, width: usize, mode: Alignment, symbol: Self::Symbol) {
+        if width < self.len() {
+            match mode {
+                Alignment::Left => {
+                    self.truncate(width);
+                }
+                Alignment::Right => {
+                    let byte_offset_drain: usize = self.len() - width;
+                    self.drain(..byte_offset_drain);
+                }
+                Alignment::Center => {
+                    let byte_offset_drain: usize = (self.len() - width) / 2;
+                    self.drain(..byte_offset_drain);
+                    self.truncate(width);
+                }
+            }
+            self.shrink_to_fit();
+            return;
+        }
+
+        let n_bytes_diff: usize = width - self.len();
+        if n_bytes_diff == 0 {
+            return;
+        }
+
+        let n_bytes_original: usize = self.len();
+        self.reserve_exact(n_bytes_diff);
+
+        let pads = mode.pads(n_bytes_diff);
+        for _ in 0..pads.right() {
+            self.push(symbol);
+        }
+
+        unsafe {
+            self.set_len(n_bytes_original + n_bytes_diff);
+        }
+
+        self.copy_within(..(n_bytes_original + pads.right()), pads.left());
+        for byte_idx in 0..pads.left() {
+            self[byte_idx] = symbol;
+        }
     }
 }
 

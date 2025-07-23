@@ -251,8 +251,6 @@ name = "padder"
 version = "2.0.0"
 dependencies = [
  "criterion",
- "serde",
- "serde_json",
 ]
 
 [[package]]

@@ -27,16 +27,22 @@ bench = true
 crate-type = [ "lib" ]
 
 [dependencies]
-serde = { version = "1.0.219", features = ["derive"], optional = true }
-serde_json = { version = "1.0.141", optional = true }
 
 [features]
 default = []
-serde = [ "dep:serde", "dep:serde_json" ]
+enable_unsafe = []
 
 [[bench]]
-name = "bench_main"
+name = "default"
+path = "benches/bench_main.rs"
 harness = false
+
+[[bench]]
+name = "enable_unsafe"
+path = "benches/bench_main_enable_unsafe.rs"
+harness = false
+required-features = [ "enable_unsafe" ]
+bench = false
 
 [dev-dependencies]
 criterion = "0.6.0"
