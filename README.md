@@ -35,17 +35,19 @@ cargo add padder
 
 ## Benchmarks
 
-Run `cargo bench` to compare performance against the builtin `format!` macro. The benchmarks are
-organized by feature and alignment strategy.
+Run `cargo bench` to compare performance against the builtin `format!` macro. The benchmarks are organized by source type, feature, and alignment strategy.
 
-To benchmark the `enable_unsafe` feature to see if the use of `unsafe` optimizations actually
-improves performance on your system, run `cargo bench --bench enable_unsafe --features
-enable_unsafe`.
+To benchmark the `enable_unsafe` feature to verify that hte use of `unsafe` optimizations actually improves performance on your system, run the following: 
+
+```
+cargo bench --bench enable_unsafe --features
+enable_unsafe
+```
 
 
 ## License
 
-padder is distributed under the terms of both the MIT license and the Apache License (version 2.0).
+padder is distributed under the terms of both the MIT License and the Apache License (version 2.0).
 
 See LICENSE-APACHE and LICENSE-MIT for details.
 
