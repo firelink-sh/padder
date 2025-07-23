@@ -1,77 +1,71 @@
 use criterion::{Criterion, criterion_group};
-use padder::*;
+use padder::{Alignment, Source};
 
 use std::hint::black_box;
 
 pub fn string_pad_10_left(c: &mut Criterion) {
     let width: usize = 10;
-    c.bench_function("String.pad 10 la", |b| {
-        b.iter(|| black_box("🤠".to_string().pad(width, Alignment::Left, 'µ')))
+    c.bench_function("String.pad 10 'l' left", |b| {
+        b.iter(|| {
+            let mut s = String::with_capacity(1);
+            s.push_str("a");
+            black_box(s.pad(width, Alignment::Left, 'l'));
+        });
     });
 }
 
 pub fn string_pad_100_left(c: &mut Criterion) {
     let width: usize = 100;
-    c.bench_function("String.pad 100 la", |b| {
+    c.bench_function("String.pad 100 '💀' left", |b| {
         b.iter(|| {
-            black_box(
-                "praise the sun!"
-                    .to_string()
-                    .pad(width, Alignment::Left, 'x'),
-            )
-        })
+            let mut s = String::with_capacity(6);
+            s.push_str("babage");
+            black_box(s.pad(width, Alignment::Left, '💀'));
+        });
     });
 }
 
 pub fn string_pad_1000_left(c: &mut Criterion) {
     let width: usize = 1000;
-    c.bench_function("String.pad 1000 la", |b| {
+    c.bench_function("String.pad 1000 '@' left", |b| {
         b.iter(|| {
-            black_box(
-                "solaire is awesome"
-                    .to_string()
-                    .pad(width, Alignment::Left, '!'),
-            )
-        })
+            let mut s = String::with_capacity(18);
+            s.push_str("solaire is awesome");
+            black_box(s.pad(width, Alignment::Left, '@'));
+        });
     });
 }
 
 pub fn string_pad_10000_left(c: &mut Criterion) {
     let width: usize = 10_000;
-    c.bench_function("String.pad 10000 la", |b| {
+    c.bench_function("String.pad 10000 '드' left", |b| {
         b.iter(|| {
-            black_box("don't you dare go hollow..!!#\"".to_string().pad(
-                width,
-                Alignment::Left,
-                'ø',
-            ))
-        })
+            let mut s = String::with_capacity(31);
+            s.push_str("don't you dare go hollow..!!#");
+            black_box(s.pad(width, Alignment::Left, '드'));
+        });
     });
 }
 
 pub fn string_pad_25000_left(c: &mut Criterion) {
     let width: usize = 25_000;
-    c.bench_function("String.pad 25000 la", |b| {
+    c.bench_function("String.pad 25000 '»' left", |b| {
         b.iter(|| {
-            black_box(
-                "東風 ぬが ㅀㆈ"
-                    .to_string()
-                    .pad(width, Alignment::Left, 'µ'),
-            )
-        })
+            let mut s = String::with_capacity(20);
+            s.push_str("東風 ぬが ㅀㆈ");
+            black_box(s.pad(width, Alignment::Left, '»'));
+        });
     });
 }
 
 pub fn string_pad_50000_left(c: &mut Criterion) {
     let width: usize = 50_000;
-    c.bench_function("String.pad 50000 la", |b| {
+    c.bench_function("String.pad 50000 'ö' left", |b| {
         b.iter(|| {
-            black_box(
-                "東風 ぬが ㅀㆈ"
-                    .to_string()
-                    .pad(width, Alignment::Left, 'µ'),
-            )
-        })
+            let mut s = String::with_capacity(17);
+            s.push_str("plant needs water");
+            black_box(s.pad(width, Alignment::Left, 'ö'));
+        });
     });
 }
 

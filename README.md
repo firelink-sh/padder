@@ -10,5 +10,6 @@
 
 TODOS:
 
-- continue implementing `MutableSource` - we might get some crisp performance
+- consider not using `unsafe` code for `MutableSource`...
+  - benchmark difference with `unsafe` and allocating temp String.
 - to support numeric formatting, look into using 'num-format'
