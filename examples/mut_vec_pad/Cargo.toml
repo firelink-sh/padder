@@ -1,0 +1,11 @@
+[package]
+name = "mut_vec_pad"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+padder = { path = "../../", version = "2.0.0", features = [ "enable_unsafe" ]}
+
+[profile.release]
+debug = true
+strip = false

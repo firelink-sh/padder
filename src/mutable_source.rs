@@ -213,10 +213,6 @@ impl MutableSource for &mut String {
         let n_bytes_l_pad = pads.left() * n_bytes_symbol;
         let n_bytes_r_pad = pads.right() * n_bytes_symbol;
 
-        for _ in 0..pads.right() {
-            self.push(symbol);
-        }
-
         unsafe {
             // We need to manually update the length of the buffer preemptively, because the
             // `buf.copy_within()` method checks its own length to validate that we are
@@ -225,9 +221,15 @@ impl MutableSource for &mut String {
             buf.set_len(n_bytes_original + n_bytes_diff);
             buf.copy_within(..(n_bytes_original + n_bytes_r_pad), n_bytes_l_pad);
 
-            let mut byte_offset: usize = 0;
+            let mut byte_offset_l: usize = 0;
             for _ in 0..pads.left() {
-                byte_offset += symbol.encode_utf8(&mut buf[byte_offset..]).len();
+                byte_offset_l += symbol.encode_utf8(&mut buf[byte_offset_l..]).len();
+            }
+
+            let mut byte_offset_r: usize = buf.len();
+            for _ in 0..pads.right() {
+                byte_offset_r -= n_bytes_symbol;
+                symbol.encode_utf8(&mut buf[byte_offset_r..]);
             }
         }
     }
@@ -300,6 +302,7 @@ where
     }
 
     #[cfg(feature = "enable_unsafe")]
+    #[inline(never)]
     /// Pads or truncates the buffer to match the specified width with a given alignment.
     ///
     /// If the buffer is longer than `width` (in bytes), it will be truncated according to the `mode`:
@@ -390,21 +393,32 @@ where
         }
 
         let n_bytes_original: usize = self.len();
-        self.reserve_exact(n_bytes_diff);
-
         let pads = mode.pads(n_bytes_diff);
-        for _ in 0..pads.right() {
-            self.push(symbol);
-        }
+
+        self.reserve_exact(n_bytes_diff);
 
         unsafe {
             self.set_len(n_bytes_original + n_bytes_diff);
         }
 
-        self.copy_within(..(n_bytes_original + pads.right()), pads.left());
-        for byte_idx in 0..pads.left() {
-            self[byte_idx] = symbol;
+        if pads.left() > 0 {
+            self.copy_within(..n_bytes_original, pads.left());
+            self.splice(
+                ..pads.left(),
+                std::iter::repeat_n(symbol, pads.left()).collect::<Vec<T>>(),
+            );
         }
+
+        if pads.right() > 0 {
+            self.splice(
+                (n_bytes_original + pads.left())..,
+                std::iter::repeat_n(symbol, pads.right()).collect::<Vec<T>>(),
+            );
+        }
+
+        // We need to do this because the `std::iter::repeat_n().collect::<Vec<T>>()` function might
+        // allocated a `Vec` with more capacity than is needed (most likely, always).
+        self.shrink_to_fit();
     }
 }
 
