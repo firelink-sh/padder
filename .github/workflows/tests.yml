@@ -7,7 +7,7 @@ on:
 
 jobs:
   tests:
-    name: Test and codecov
+    name: Cargo test and codecov
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
