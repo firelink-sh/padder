@@ -14,34 +14,25 @@ impl MutableSource for &mut String {
 
     fn pad(&mut self, width: usize, mode: Alignment, symbol: Self::Symbol) {
         let n_chars_original: usize = self.chars().count();
-        let n_bytes_original: usize = self.len();
 
         if width < n_chars_original {
-            let byte_offset_trunc: usize;
             match mode {
-                // `String.truncate()` removes from the right - so no need to
-                // perform any `buf.copy_whithin()` shenanigans.
                 Alignment::Left => {
-                    byte_offset_trunc = self
+                    let byte_offset_trunc: usize = self
                         .char_indices()
                         .nth(width)
                         .map(|(byte_offset, _)| byte_offset)
                         .expect("the String did not contain enough chars!");
+                    self.truncate(byte_offset_trunc);
                 }
                 Alignment::Right => {
-                    let byte_offset = self
+                    let byte_offset_drain = self
                         .char_indices()
                         .rev()
                         .nth(width - 1)
                         .map(|(byte_offset, _)| byte_offset)
                         .expect("the String did not contain enough chars!");
-
-                    byte_offset_trunc = n_bytes_original - byte_offset;
-                    unsafe {
-                        let buf = self.as_mut_vec();
-                        buf.copy_within(byte_offset.., 0);
-                        buf.set_len(byte_offset_trunc);
-                    }
+                    self.drain(0..byte_offset_drain);
                 }
                 Alignment::Center => {
                     let st_idx: usize = (n_chars_original - width) / 2;
@@ -60,17 +51,10 @@ impl MutableSource for &mut String {
                         }
                     }
 
-                    byte_offset_trunc = ed_byte - st_byte;
-                    unsafe {
-                        let buf = self.as_mut_vec();
-                        buf.copy_within(st_byte..ed_byte, 0);
-                        buf.set_len(byte_offset_trunc);
-                    }
+                    self.drain(0..st_byte);
+                    self.truncate(ed_byte - st_byte);
                 }
             };
-
-            self.truncate(byte_offset_trunc);
-            // Release any unused memory after truncate.
             self.shrink_to_fit();
             return;
         }
@@ -80,33 +64,16 @@ impl MutableSource for &mut String {
             return;
         }
 
-        let n_bytes_symbol: usize = symbol.len_utf8();
-        let n_bytes_diff: usize = n_chars_diff * n_bytes_symbol;
-        self.reserve_exact(n_bytes_diff);
-
         let pads = mode.pads(n_chars_diff);
-        let n_bytes_left_pad = pads.left() * n_bytes_symbol;
-        let n_bytes_right_pad = pads.right() * n_bytes_symbol;
+        // This performs two new allocations - but much faster than `insert()` on
+        // large strings, and only marginally slower than using `unsafe` on large strings!.
+        let mut new_s: String = std::iter::repeat_n(symbol, pads.left()).collect();
 
-        for _ in 0..pads.right() {
-            self.push(symbol);
-        }
+        new_s.push_str(self);
+        new_s.push_str(&std::iter::repeat_n(symbol, pads.right()).collect::<String>());
 
-        unsafe {
-            let buf = self.as_mut_vec();
-            // Need to manually update the length of the buffer preemptively, because
-            // the `buf.copy_within()` method checks its own length to validate that
-            // we are allowed to move contents within the slice.
-            buf.set_len(n_bytes_original + n_bytes_diff);
-
-            // Shift to the right using `memmove` in the allocated buffer.
-            buf.copy_within(0..(n_bytes_original + n_bytes_right_pad), n_bytes_left_pad);
-
-            let mut byte_offset: usize = 0;
-            for _ in 0..pads.left() {
-                byte_offset += symbol.encode_utf8(&mut buf[byte_offset..]).len();
-            }
-        }
+        new_s.shrink_to_fit();
+        **self = new_s;
     }
 }
 
@@ -120,22 +87,21 @@ where
     fn pad(&mut self, width: usize, mode: Alignment, symbol: Self::Symbol) {
         if width < self.len() {
             match mode {
-                // For aligning left we don't have to do anything - the
-                // `truncate()` method deals with this for us.
-                Alignment::Left => {}
+                Alignment::Left => {
+                    self.truncate(width);
+                }
                 Alignment::Right => {
-                    // Move `width` amount of bytes to the left.
-                    let n_bytes_to_trunc: usize = self.len() - width;
-                    self.copy_within(n_bytes_to_trunc.., 0);
+                    let byte_offset_drain: usize = self.len() - width;
+                    self.drain(0..byte_offset_drain);
                 }
                 Alignment::Center => {
-                    let st_idx: usize = (self.len() - width) / 2;
-                    let ed_idx: usize = st_idx + width;
-                    self.copy_within(st_idx..ed_idx, 0);
+                    let byte_offset_drain: usize = (self.len() - width) / 2;
+                    self.drain(0..byte_offset_drain);
+                    self.truncate(width);
                 }
             }
-            self.truncate(width);
             self.shrink_to_fit();
+            return;
         }
 
         let n_bytes_diff: usize = width - self.len();
@@ -143,23 +109,15 @@ where
             return;
         }
 
-        let n_bytes_original: usize = self.len();
-        self.reserve_exact(n_bytes_diff);
-
         let pads = mode.pads(n_bytes_diff);
-        for _ in 0..pads.right() {
-            self.push(symbol);
-        }
+        // This performs two new allocations - but should be faster than insert?
+        let mut new_v: Vec<T> = std::iter::repeat_n(symbol, pads.left()).collect();
 
-        // Safety: n_bytes_original + n_bytes_diff <= self.capacity()
-        unsafe {
-            self.set_len(n_bytes_original + n_bytes_diff);
-        }
+        new_v.extend_from_slice(self);
+        new_v.extend_from_slice(&std::iter::repeat_n(symbol, pads.right()).collect::<Vec<T>>());
 
-        self.copy_within(0..(n_bytes_original + pads.right()), pads.left());
-        for byte_offset in 0..pads.left() {
-            self[byte_offset] = symbol;
-        }
+        new_v.shrink_to_fit();
+        **self = new_v;
     }
 }
 
