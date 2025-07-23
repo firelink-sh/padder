@@ -10,7 +10,7 @@
 padder is a lightweight Rust crate for padding and formatting data structures at runtime efficiently. It provides fine-grained control over alignment, truncating strategies, padding, and memory allocation - making it ideal for performance-critical applications.
 
 Unlike the builtin `format!` macro, padder avoids unnecessary repeated heap allocations and lets you
-pad directly into preallocated buffers.
+pad and format directly into preallocated buffers.
 
 
 ## Features
@@ -18,7 +18,7 @@ pad directly into preallocated buffers.
 - Pad strings, slices, and vectors with custom alignment and width.
 - Zero-cost abstractions via the `Source` and `MutableSource` traits.
 - Pad directly into buffers for fine-grained heap allocation control.
-- Highly extendable to custom types through the provided traits.
+- Highly extensible to custom types through the provided traits.
 
 
 ## Installation
@@ -30,7 +30,6 @@ cargo add padder
 
 (available features)
  - enable_unsafe
-
 ```
 
 
@@ -42,3 +41,11 @@ organized by feature and alignment strategy.
 To benchmark the `enable_unsafe` feature to see if the use of `unsafe` optimizations actually
 improves performance on your system, run `cargo bench --bench enable_unsafe --features
 enable_unsafe`.
+
+
+## License
+
+padder is distributed under the terms of both the MIT license and the Apache License (version 2.0).
+
+See LICENSE-APACHE and LICENSE-MIT for details.
+
