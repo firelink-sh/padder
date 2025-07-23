@@ -6,13 +6,13 @@ use crate::alignment::Alignment;
 /// either by trimming excess data or inserting padding symbols on one or both sides of the buffer.
 /// This is useful for formatting structures like [`String`]s or [`Vec`]s for display or layout.
 ///
-/// ## Associated Types
+/// # Associated Types
 /// - `Symbol`: the element used for padding (e.g., `char`, `u8`, or anything that implements [`Copy`]).
 /// - `Buffer`: the underying mutable buffer type.
 ///
-/// ## Optional unsafe optimization
+/// # Optional unsafe optimization
 /// If compiled with the `enable_unsafe` feature flag, implementations will utilize `unsafe` code
-/// for maximum performance (via manual buffer length adjustments and unchecked memory writes).
+/// for improved performance (through manual buffer length adjustments and unchecked memory writes).
 ///
 /// [`pad`]: MutableSource::pad
 pub trait MutableSource {
@@ -40,7 +40,7 @@ impl MutableSource for &mut String {
     ///
     /// The result replaces the original string.
     ///
-    /// ## Example
+    /// # Examples
     /// ```
     /// use padder::*;
     ///
@@ -51,7 +51,6 @@ impl MutableSource for &mut String {
     /// assert_eq!(25, s.chars().count());
     /// assert_eq!(23 + 2 * 3, s.capacity());  // '¡' = 2 bytes & 'Ä' = 2 bytes
     /// ```
-    ///
     /// [`insert()`]: String::insert()
     fn pad(&mut self, width: usize, mode: Alignment, symbol: Self::Symbol) {
         let n_chars_original: usize = self.chars().count();
@@ -128,14 +127,13 @@ impl MutableSource for &mut String {
     ///
     /// The result replaces the original string.
     ///
-    /// ## Safety
+    /// # Safety
     /// This implementation makes use of the [`set_len()`] and [`copy_within()`] methods to directly
     /// modify the contents of the String buffer without having to perform any extra allocations.
     ///
-    /// This greatly improves performance when padding large strings, truncating performance should
-    /// be unchanged.
+    /// This greatly improves performance when padding large strings, truncating performance should be unchanged.
     ///
-    /// ## Example
+    /// # Examples
     /// ```
     /// use padder::*;
     ///
@@ -143,13 +141,16 @@ impl MutableSource for &mut String {
     /// let width: usize = 11;
     /// (&mut s).pad(width, Alignment::Right, '-');  // "----sackboy
     ///
+    /// let mut expected = String::from("----sackboy");
+    /// expected.shrink_to_fit();
+    ///
     /// assert_eq!(11, s.chars().count());
     /// assert_eq!(11, s.capacity());
+    /// assert_eq!(expected.len(), s.len());
+    /// assert_eq!(expected, s);
     /// ```
-    ///
-    /// [`insert()`]: String::insert()
-    /// [`set_len()`]: String::copy_within()
-    /// [`copy_within()`]: String::set_len()
+    /// [`set_len()`]: Vec::set_len()
+    /// [`copy_within()`]: https://doc.rust-lang.org/std/primitive.slice.html#method.copy_within
     fn pad(&mut self, width: usize, mode: Alignment, symbol: Self::Symbol) {
         let n_chars_original: usize = self.chars().count();
         let n_bytes_original: usize = self.len();
@@ -253,7 +254,7 @@ where
     ///
     /// The result replaces the original buffer.
     ///
-    /// ## Example
+    /// # Examples
     /// ```
     /// use padder::*;
     ///
@@ -312,14 +313,13 @@ where
     ///
     /// The result replaces the original buffer.
     ///
-    /// ## Safety
+    /// # Safety
     /// This implementation makes use of the [`set_len()`] and [`copy_within()`] methods to directly
     /// modify the contents of the Vec buffer without having to perform any extra allocations.
     ///
-    /// This greatly improves performance when padding to large buffers, truncating performance
-    /// should be unchanged.
+    /// This greatly improves performance when padding to large buffers, truncating performance should be unchanged.
     ///
-    /// ## Example
+    /// # Examples
     /// ```
     /// use padder::*;
     ///
@@ -362,10 +362,8 @@ where
     ///
     /// assert_eq!(expected, v);
     /// ```
-    ///
-    /// [`insert()`]: Vec::insert()
-    /// [`set_len()`]: Vec::copy_within()
-    /// [`copy_within()`]: Vec::set_len()
+    /// [`set_len()`]: Vec::set_len
+    /// [`copy_within()`]: https://doc.rust-lang.org/std/primitive.slice.html#method.copy_within
     fn pad(&mut self, width: usize, mode: Alignment, symbol: Self::Symbol) {
         if width < self.len() {
             match mode {

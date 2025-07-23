@@ -25,7 +25,7 @@ pub fn format_pad_1000_left(c: &mut Criterion) {
 
 pub fn format_pad_10000_left(c: &mut Criterion) {
     let width: usize = 10_000;
-    c.bench_function("format! 10000 '드' left", |b| {
+    c.bench_function("format! 10_000 '드' left", |b| {
         b.iter(|| {
             black_box(format!(
                 "{:드<width$}",
@@ -38,14 +38,14 @@ pub fn format_pad_10000_left(c: &mut Criterion) {
 
 pub fn format_pad_25000_left(c: &mut Criterion) {
     let width: usize = 25_000;
-    c.bench_function("format! 25000 '»' left", |b| {
+    c.bench_function("format! 25_000 '»' left", |b| {
         b.iter(|| black_box(format!("{:»<width$}", "東風 ぬが ㅀㆈ", width = width)))
     });
 }
 
 pub fn format_pad_50000_left(c: &mut Criterion) {
     let width: usize = 50_000;
-    c.bench_function("format! 50000 'ö' left", |b| {
+    c.bench_function("format! 50_000 'ö' left", |b| {
         b.iter(|| black_box(format!("{:ö<width$}", "plant needs water", width = width)))
     });
 }

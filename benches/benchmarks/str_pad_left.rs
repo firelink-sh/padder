@@ -32,7 +32,7 @@ pub fn str_pad_1000_left(c: &mut Criterion) {
 
 pub fn str_pad_10000_left(c: &mut Criterion) {
     let width: usize = 10_000;
-    c.bench_function("&str.pad 10000 '드' left", |b| {
+    c.bench_function("&str.pad 10_000 '드' left", |b| {
         b.iter(|| {
             black_box("don't you dare go hollow..!!#".pad(width, Alignment::Left, '드'));
         });
@@ -41,7 +41,7 @@ pub fn str_pad_10000_left(c: &mut Criterion) {
 
 pub fn str_pad_25000_left(c: &mut Criterion) {
     let width: usize = 25_000;
-    c.bench_function("&str.pad 25000 '»' left", |b| {
+    c.bench_function("&str.pad 25_000 '»' left", |b| {
         b.iter(|| {
             black_box("東風 ぬが ㅀㆈ".pad(width, Alignment::Left, '»'));
         });
@@ -50,7 +50,7 @@ pub fn str_pad_25000_left(c: &mut Criterion) {
 
 pub fn str_pad_50000_left(c: &mut Criterion) {
     let width: usize = 50_000;
-    c.bench_function("&str.pad 50000 'ö' left", |b| {
+    c.bench_function("&str.pad 50_000 'ö' left", |b| {
         b.iter(|| {
             black_box("plant needs water".pad(width, Alignment::Left, 'ö'));
         });

@@ -5,10 +5,11 @@ use std::hint::black_box;
 
 pub fn string_pad_10_right(c: &mut Criterion) {
     let width: usize = 10;
+    let mut source = String::from("a");
+    source.shrink_to_fit();
     c.bench_function("String.pad 10 'l' right", |b| {
         b.iter(|| {
-            let mut s = String::with_capacity(1);
-            s.push_str("a");
+            let s = black_box(source.clone());
             black_box(s.pad(width, Alignment::Right, 'l'));
         });
     });
@@ -16,10 +17,11 @@ pub fn string_pad_10_right(c: &mut Criterion) {
 
 pub fn string_pad_100_right(c: &mut Criterion) {
     let width: usize = 100;
+    let mut source = String::from("babage");
+    source.shrink_to_fit();
     c.bench_function("String.pad 100 '💀' right", |b| {
         b.iter(|| {
-            let mut s = String::with_capacity(6);
-            s.push_str("babage");
+            let s = black_box(source.clone());
             black_box(s.pad(width, Alignment::Right, '💀'));
         });
     });
@@ -27,10 +29,11 @@ pub fn string_pad_100_right(c: &mut Criterion) {
 
 pub fn string_pad_1000_right(c: &mut Criterion) {
     let width: usize = 1000;
+    let mut source = String::from("solaire is awesome");
+    source.shrink_to_fit();
     c.bench_function("String.pad 1000 '@' right", |b| {
         b.iter(|| {
-            let mut s = String::with_capacity(18);
-            s.push_str("solaire is awesome");
+            let s = black_box(source.clone());
             black_box(s.pad(width, Alignment::Right, '@'));
         });
     });
@@ -38,10 +41,11 @@ pub fn string_pad_1000_right(c: &mut Criterion) {
 
 pub fn string_pad_10000_right(c: &mut Criterion) {
     let width: usize = 10_000;
-    c.bench_function("String.pad 10000 '드' right", |b| {
+    let mut source = String::from("don't you dare go hollow..!!#");
+    source.shrink_to_fit();
+    c.bench_function("String.pad 10_000 '드' right", |b| {
         b.iter(|| {
-            let mut s = String::with_capacity(31);
-            s.push_str("don't you dare go hollow..!!#");
+            let s = black_box(source.clone());
             black_box(s.pad(width, Alignment::Right, '드'));
         });
     });
@@ -49,10 +53,11 @@ pub fn string_pad_10000_right(c: &mut Criterion) {
 
 pub fn string_pad_25000_right(c: &mut Criterion) {
     let width: usize = 25_000;
-    c.bench_function("String.pad 25000 '»' right", |b| {
+    let mut source = String::from("東風 ぬが ㅀㆈ");
+    source.shrink_to_fit();
+    c.bench_function("String.pad 25_000 '»' right", |b| {
         b.iter(|| {
-            let mut s = String::with_capacity(20);
-            s.push_str("東風 ぬが ㅀㆈ");
+            let s = black_box(source.clone());
             black_box(s.pad(width, Alignment::Right, '»'));
         });
     });
@@ -60,10 +65,11 @@ pub fn string_pad_25000_right(c: &mut Criterion) {
 
 pub fn string_pad_50000_right(c: &mut Criterion) {
     let width: usize = 50_000;
-    c.bench_function("String.pad 50000 'ö' right", |b| {
+    let mut source = String::from("plant needs water");
+    source.shrink_to_fit();
+    c.bench_function("String.pad 50_000 'ö' right", |b| {
         b.iter(|| {
-            let mut s = String::with_capacity(17);
-            s.push_str("plant needs water");
+            let s = black_box(source.clone());
             black_box(s.pad(width, Alignment::Right, 'ö'));
         });
     });
