@@ -1,6 +1,20 @@
 use crate::alignment::Alignment;
 
-/// Implementation of a mutable `source` to pad.
+/// A trait representing a mutable, width-aware data buffer that can be padded (and truncated).
+///
+/// Types implementing [`MutableSource`] expose the method [`pad`] for resizing themselves to a specific width,
+/// either by trimming excess data or inserting padding symbols on one or both sides of the buffer.
+/// This is useful for formatting structures like [`String`]s or [`Vec`]s for display or layout.
+///
+/// ## Associated Types
+/// - `Symbol`: the element used for padding (e.g., `char`, `u8`, or anything that implements [`Copy`]).
+/// - `Buffer`: the underying mutable buffer type.
+///
+/// ## Optional unsafe optimization
+/// If compiled with the `enable_unsafe` feature flag, implementations will utilize `unsafe` code
+/// for maximum performance (via manual buffer length adjustments and unchecked memory writes).
+///
+/// [`pad`]: MutableSource::pad
 pub trait MutableSource {
     type Symbol;
     type Buffer;
@@ -12,36 +26,53 @@ impl MutableSource for &mut String {
     type Symbol = char;
     type Buffer = Self;
 
+    /// Pads or truncates the string to match the specified width with a given alignment.
+    ///
+    /// If the string is longer than `width` (in utf8 chars), it will be truncated according to the `mode`:
+    /// - [`Alignment::Left`]: truncates from the right.
+    /// - [`Alignment::Right`]: truncates from the left.
+    /// - [`Alignment::Center`]: trims equally from both ends (extra char trimmed from the left if number of chars to trim is odd).
+    ///
+    /// If the buffer is shorter than `width`, it will be padded using the specified `symbol`:
+    /// - Padding is distributed based on alignment: left, right, or center (extra symbol on the right if number of chars to pad is odd).
+    /// - The implementation performs two temporary allocations to construct the padded version (much more efficient than performing repeated [`insert()`] calls).
+    ///
+    /// The result replaces the original string.
+    ///
+    /// ## Example
+    /// ```
+    /// use padder::*;
+    ///
+    /// let mut s = String::from("Visa Vid Vindens Ängar");
+    /// let width: usize = 25;
+    /// (&mut s).pad(width, Alignment::Center, '¡');  // "¡Visa Vid Vindens Ängar¡¡"
+    ///
+    /// assert_eq!(25, s.chars().count());
+    /// assert_eq!(23 + 2 * 3, s.capacity());  // '¡' = 2 bytes & 'Ä' = 2 bytes
+    /// ```
+    ///
+    /// [`insert()`]: String::insert()
     fn pad(&mut self, width: usize, mode: Alignment, symbol: Self::Symbol) {
         let n_chars_original: usize = self.chars().count();
-        let n_bytes_original: usize = self.len();
 
         if width < n_chars_original {
-            let byte_offset_trunc: usize;
             match mode {
-                // `String.truncate()` removes from the right - so no need to
-                // perform any `buf.copy_whithin()` shenanigans.
                 Alignment::Left => {
-                    byte_offset_trunc = self
+                    let byte_offset_trunc: usize = self
                         .char_indices()
                         .nth(width)
                         .map(|(byte_offset, _)| byte_offset)
                         .expect("the String did not contain enough chars!");
+                    self.truncate(byte_offset_trunc);
                 }
                 Alignment::Right => {
-                    let byte_offset = self
+                    let byte_offset_drain = self
                         .char_indices()
                         .rev()
                         .nth(width - 1)
                         .map(|(byte_offset, _)| byte_offset)
                         .expect("the String did not contain enough chars!");
-
-                    byte_offset_trunc = n_bytes_original - byte_offset;
-                    unsafe {
-                        let buf = self.as_mut_vec();
-                        buf.copy_within(byte_offset.., 0);
-                        buf.set_len(byte_offset_trunc);
-                    }
+                    self.drain(0..byte_offset_drain);
                 }
                 Alignment::Center => {
                     let st_idx: usize = (n_chars_original - width) / 2;
@@ -60,17 +91,10 @@ impl MutableSource for &mut String {
                         }
                     }
 
-                    byte_offset_trunc = ed_byte - st_byte;
-                    unsafe {
-                        let buf = self.as_mut_vec();
-                        buf.copy_within(st_byte..ed_byte, 0);
-                        buf.set_len(byte_offset_trunc);
-                    }
+                    self.drain(0..st_byte);
+                    self.truncate(ed_byte - st_byte);
                 }
             };
-
-            self.truncate(byte_offset_trunc);
-            // Release any unused memory after truncate.
             self.shrink_to_fit();
             return;
         }
@@ -80,33 +104,14 @@ impl MutableSource for &mut String {
             return;
         }
 
-        let n_bytes_symbol: usize = symbol.len_utf8();
-        let n_bytes_diff: usize = n_chars_diff * n_bytes_symbol;
-        self.reserve_exact(n_bytes_diff);
-
         let pads = mode.pads(n_chars_diff);
-        let n_bytes_left_pad = pads.left() * n_bytes_symbol;
-        let n_bytes_right_pad = pads.right() * n_bytes_symbol;
+        let mut new_s: String = std::iter::repeat_n(symbol, pads.left()).collect();
 
-        for _ in 0..pads.right() {
-            self.push(symbol);
-        }
+        new_s.push_str(self);
+        new_s.push_str(&std::iter::repeat_n(symbol, pads.right()).collect::<String>());
 
-        unsafe {
-            let buf = self.as_mut_vec();
-            // Need to manually update the length of the buffer preemptively, because
-            // the `buf.copy_within()` method checks its own length to validate that
-            // we are allowed to move contents within the slice.
-            buf.set_len(n_bytes_original + n_bytes_diff);
-
-            // Shift to the right using `memmove` in the allocated buffer.
-            buf.copy_within(0..(n_bytes_original + n_bytes_right_pad), n_bytes_left_pad);
-
-            let mut byte_offset: usize = 0;
-            for _ in 0..pads.left() {
-                byte_offset += symbol.encode_utf8(&mut buf[byte_offset..]).len();
-            }
-        }
+        new_s.shrink_to_fit();
+        **self = new_s;
     }
 }
 
@@ -117,25 +122,47 @@ where
     type Symbol = T;
     type Buffer = Self;
 
+    /// Pads or truncates the buffer to match the specified width with a given alignment.
+    ///
+    /// If the buffer is longer than `width` (in bytes), it will be truncated according to the `mode`:
+    /// - [`Alignment::Left`]: truncates from the right.
+    /// - [`Alignment::Right`]: truncates from the left.
+    /// - [`Alignment::Center`]: trims equally from both ends (extra byte trimmed from the left if number of bytes to trim is odd).
+    ///
+    /// If the buffer is shorter than `width`, it will be padded using the specified `symbol`:
+    /// - Padding is distributed based on alignment: left, right, or center (extra symbol on the right if number of bytes to pad is odd).
+    /// - The implementation performs two temporary allocations to construct the padded version (much more efficient than performing repeated [`insert()`] calls).
+    ///
+    /// The result replaces the original buffer.
+    ///
+    /// ## Example
+    /// ```
+    /// use padder::*;
+    ///
+    /// let mut v: Vec<char> = vec!['y', 'o', 'o'];
+    /// let width: usize = 7;
+    /// (&mut v).pad(width, Alignment::Left, '!');  // ['y', 'o', 'o', '!', '!', '!', '!']
+    /// ```
+    ///
+    /// [`insert()`]: Vec::insert()
     fn pad(&mut self, width: usize, mode: Alignment, symbol: Self::Symbol) {
         if width < self.len() {
             match mode {
-                // For aligning left we don't have to do anything - the
-                // `truncate()` method deals with this for us.
-                Alignment::Left => {}
+                Alignment::Left => {
+                    self.truncate(width);
+                }
                 Alignment::Right => {
-                    // Move `width` amount of bytes to the left.
-                    let n_bytes_to_trunc: usize = self.len() - width;
-                    self.copy_within(n_bytes_to_trunc.., 0);
+                    let byte_offset_drain: usize = self.len() - width;
+                    self.drain(0..byte_offset_drain);
                 }
                 Alignment::Center => {
-                    let st_idx: usize = (self.len() - width) / 2;
-                    let ed_idx: usize = st_idx + width;
-                    self.copy_within(st_idx..ed_idx, 0);
+                    let byte_offset_drain: usize = (self.len() - width) / 2;
+                    self.drain(0..byte_offset_drain);
+                    self.truncate(width);
                 }
             }
-            self.truncate(width);
             self.shrink_to_fit();
+            return;
         }
 
         let n_bytes_diff: usize = width - self.len();
@@ -143,23 +170,14 @@ where
             return;
         }
 
-        let n_bytes_original: usize = self.len();
-        self.reserve_exact(n_bytes_diff);
-
         let pads = mode.pads(n_bytes_diff);
-        for _ in 0..pads.right() {
-            self.push(symbol);
-        }
+        let mut new_v: Vec<T> = std::iter::repeat_n(symbol, pads.left()).collect();
 
-        // Safety: n_bytes_original + n_bytes_diff <= self.capacity()
-        unsafe {
-            self.set_len(n_bytes_original + n_bytes_diff);
-        }
+        new_v.extend_from_slice(self);
+        new_v.extend_from_slice(&std::iter::repeat_n(symbol, pads.right()).collect::<Vec<T>>());
 
-        self.copy_within(0..(n_bytes_original + pads.right()), pads.left());
-        for byte_offset in 0..pads.left() {
-            self[byte_offset] = symbol;
-        }
+        new_v.shrink_to_fit();
+        **self = new_v;
     }
 }
 
