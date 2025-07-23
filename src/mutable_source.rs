@@ -115,7 +115,41 @@ impl MutableSource for &mut String {
     }
 
     #[cfg(feature = "enable_unsafe")]
+    /// Pads or truncates the string to match the specified width with a given alignment.
     ///
+    /// If the string is longer than `width` (in utf8 chars), it will be truncated according to the `mode`:
+    /// - [`Alignment::Left`]: truncates from the right.
+    /// - [`Alignment::Right`]: truncates from the left.
+    /// - [`Alignment::Center`]: trims equally from both ends (extra char trimmed from the left if number of chars to trim is odd).
+    ///
+    /// If the buffer is shorter than `width`, it will be padded using the specified `symbol`:
+    /// - Padding is distributed based on alignment: left, right, or center (extra symbol on the right if number of chars to pad is odd).
+    /// - This implementation performs no heap allocations to construct the padded version (but introduces `unsafe` code).
+    ///
+    /// The result replaces the original string.
+    ///
+    /// ## Safety
+    /// This implementation makes use of the [`set_len()`] and [`copy_within()`] methods to directly
+    /// modify the contents of the String buffer without having to perform any extra allocations.
+    ///
+    /// This greatly improves performance when padding large strings, truncating performance should
+    /// be unchanged.
+    ///
+    /// ## Example
+    /// ```
+    /// use padder::*;
+    ///
+    /// let mut s = String::from("sackboy");
+    /// let width: usize = 11;
+    /// (&mut s).pad(width, Alignment::Right, '-');  // "----sackboy
+    ///
+    /// assert_eq!(11, s.chars().count());
+    /// assert_eq!(11, s.capacity());
+    /// ```
+    ///
+    /// [`insert()`]: String::insert()
+    /// [`set_len()`]: String::copy_within()
+    /// [`copy_within()`]: String::set_len()
     fn pad(&mut self, width: usize, mode: Alignment, symbol: Self::Symbol) {
         let n_chars_original: usize = self.chars().count();
         let n_bytes_original: usize = self.len();
@@ -265,7 +299,73 @@ where
     }
 
     #[cfg(feature = "enable_unsafe")]
+    /// Pads or truncates the buffer to match the specified width with a given alignment.
     ///
+    /// If the buffer is longer than `width` (in bytes), it will be truncated according to the `mode`:
+    /// - [`Alignment::Left`]: truncates from the right.
+    /// - [`Alignment::Right`]: truncates from the left.
+    /// - [`Alignment::Center`]: trims equally from both ends (extra byte trimmed from the left if number of bytes to trim is odd).
+    ///
+    /// If the buffer is shorter than `width`, it will be padded using the specified `symbol`:
+    /// - Padding is distributed based on alignment: left, right, or center (extra symbol on the right if number of bytes to pad is odd).
+    /// - This implementation performs no heap allocations to construct the padded version (but introduces `unsafe` code).
+    ///
+    /// The result replaces the original buffer.
+    ///
+    /// ## Safety
+    /// This implementation makes use of the [`set_len()`] and [`copy_within()`] methods to directly
+    /// modify the contents of the Vec buffer without having to perform any extra allocations.
+    ///
+    /// This greatly improves performance when padding to large buffers, truncating performance
+    /// should be unchanged.
+    ///
+    /// ## Example
+    /// ```
+    /// use padder::*;
+    ///
+    /// #[derive(Debug, Default, Copy, Clone, PartialEq)]
+    /// struct DummyStruct {
+    ///     a: usize,
+    ///     b: bool,
+    /// }
+    ///
+    /// let mut v: Vec<DummyStruct> = Vec::from(&[
+    ///     DummyStruct { a: 3, b: false },
+    ///     DummyStruct { a: 2, b: true },
+    ///     DummyStruct { a: 1, b: false },
+    ///     DummyStruct { a: 15, b: false },
+    /// ]);
+    /// v.shrink_to_fit();
+    ///
+    /// let width: usize = 7;
+    /// (&mut v).pad(width, Alignment::Right, DummyStruct { a: 1337, b: true });
+    ///
+    /// let mut expected: Vec<DummyStruct> = Vec::from(&[
+    ///     DummyStruct { a: 1337, b: true },
+    ///     DummyStruct { a: 1337, b: true },
+    ///     DummyStruct { a: 1337, b: true },
+    ///     DummyStruct { a: 3, b: false },
+    ///     DummyStruct { a: 2, b: true },
+    ///     DummyStruct { a: 1, b: false },
+    ///     DummyStruct { a: 15, b: false },
+    /// ]);
+    /// expected.shrink_to_fit();
+    ///
+    /// assert_eq!(expected.len(), v.len());
+    /// assert_eq!(expected.capacity(), v.capacity());
+    /// assert_eq!(expected, v);
+    ///
+    /// // we can modify the original vec again!
+    /// (&mut v).pad(2, Alignment::Left, DummyStruct::default());  // the pad symbol doesn't matter when we truncate
+    ///
+    /// expected.truncate(expected.len().saturating_sub(width - 2));
+    ///
+    /// assert_eq!(expected, v);
+    /// ```
+    ///
+    /// [`insert()`]: Vec::insert()
+    /// [`set_len()`]: Vec::copy_within()
+    /// [`copy_within()`]: Vec::set_len()
     fn pad(&mut self, width: usize, mode: Alignment, symbol: Self::Symbol) {
         if width < self.len() {
             match mode {
