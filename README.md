@@ -4,6 +4,10 @@
 ##### Highly efficient runtime data formatting and padding crate for Rust.
 
 [![CI](https://github.com/firelink-sh/padder/actions/workflows/ci.yml/badge.svg)](https://github.com/firelink-sh/padder/actions/workflows/ci.yml)
+[![Tests](https://github.com/firelink-sh/padder/actions/workflows/tests.yml/badge.svg)](https://github.com/firelink-sh/padder/actions/workflows/tests.yml)
+[![codecov](https://codecov.io/gh/firelink-sh/padder/graph/badge.svg?token=OTFIM6UICZ)](https://codecov.io/gh/firelink-sh/padder)
+
+<br>
 
 </div>
 
@@ -12,6 +16,7 @@ padder is a lightweight Rust crate for padding and formatting data structures at
 Unlike the builtin `format!` macro, padder avoids unnecessary repeated heap allocations and lets you
 pad and format directly into preallocated buffers.
 
+**Fully UTF-8 compatible** - padder works seamlessly with any Unicode characters like emojis (🐉), Japanese kana/kanji (こんにちは), or other multibyte symbols, when operating on String types.
 
 ## Features
 
@@ -37,11 +42,10 @@ cargo add padder
 
 Run `cargo bench` to compare performance against the builtin `format!` macro. The benchmarks are organized by source type, feature, and alignment strategy.
 
-To benchmark the `enable_unsafe` feature to verify that hte use of `unsafe` optimizations actually improves performance on your system, run the following: 
+To benchmark the `enable_unsafe` feature to verify that the use of `unsafe` actually improves performance on your system, run the following: 
 
 ```
-cargo bench --bench enable_unsafe --features
-enable_unsafe
+cargo bench --bench enable_unsafe --features enable_unsafe
 ```
 
 
