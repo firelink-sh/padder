@@ -1,6 +1,20 @@
 use crate::alignment::Alignment;
 
-/// Implementation of a mutable `source` to pad.
+/// A trait representing a mutable, width-aware data buffer that can be padded (and truncated).
+///
+/// Types implementing [`MutableSource`] expose the method [`pad`] for resizing themselves to a specific width,
+/// either by trimming excess data or inserting padding symbols on one or both sides of the buffer.
+/// This is useful for formatting structures like [`String`]s or [`Vec`]s for display or layout.
+///
+/// ## Associated Types
+/// - `Symbol`: the element used for padding (e.g., `char`, `u8`, or anything that implements [`Copy`]).
+/// - `Buffer`: the underying mutable buffer type.
+///
+/// ## Optional unsafe optimization
+/// If compiled with the `enable_unsafe` feature flag, implementations will utilize `unsafe` code
+/// for maximum performance (via manual buffer length adjustments and unchecked memory writes).
+///
+/// [`pad`]: MutableSource::pad
 pub trait MutableSource {
     type Symbol;
     type Buffer;
@@ -12,6 +26,32 @@ impl MutableSource for &mut String {
     type Symbol = char;
     type Buffer = Self;
 
+    /// Pads or truncates the string to match the specified width with a given alignment.
+    ///
+    /// If the string is longer than `width` (in utf8 chars), it will be truncated according to the `mode`:
+    /// - [`Alignment::Left`]: truncates from the right.
+    /// - [`Alignment::Right`]: truncates from the left.
+    /// - [`Alignment::Center`]: trims equally from both ends (extra char trimmed from the left if number of chars to trim is odd).
+    ///
+    /// If the buffer is shorter than `width`, it will be padded using the specified `symbol`:
+    /// - Padding is distributed based on alignment: left, right, or center (extra symbol on the right if number of chars to pad is odd).
+    /// - The implementation performs two temporary allocations to construct the padded version (much more efficient than performing repeated [`insert()`] calls).
+    ///
+    /// The result replaces the original string.
+    ///
+    /// ## Example
+    /// ```
+    /// use padder::*;
+    ///
+    /// let mut s = String::from("Visa Vid Vindens Ängar");
+    /// let width: usize = 25;
+    /// (&mut s).pad(width, Alignment::Center, '¡');  // "¡Visa Vid Vindens Ängar¡¡"
+    ///
+    /// assert_eq!(25, s.chars().count());
+    /// assert_eq!(23 + 2 * 3, s.capacity());  // '¡' = 2 bytes & 'Ä' = 2 bytes
+    /// ```
+    ///
+    /// [`insert()`]: String::insert()
     fn pad(&mut self, width: usize, mode: Alignment, symbol: Self::Symbol) {
         let n_chars_original: usize = self.chars().count();
 
@@ -65,8 +105,6 @@ impl MutableSource for &mut String {
         }
 
         let pads = mode.pads(n_chars_diff);
-        // This performs two new allocations - but much faster than `insert()` on
-        // large strings, and only marginally slower than using `unsafe` on large strings!.
         let mut new_s: String = std::iter::repeat_n(symbol, pads.left()).collect();
 
         new_s.push_str(self);
@@ -84,6 +122,29 @@ where
     type Symbol = T;
     type Buffer = Self;
 
+    /// Pads or truncates the buffer to match the specified width with a given alignment.
+    ///
+    /// If the buffer is longer than `width` (in bytes), it will be truncated according to the `mode`:
+    /// - [`Alignment::Left`]: truncates from the right.
+    /// - [`Alignment::Right`]: truncates from the left.
+    /// - [`Alignment::Center`]: trims equally from both ends (extra byte trimmed from the left if number of bytes to trim is odd).
+    ///
+    /// If the buffer is shorter than `width`, it will be padded using the specified `symbol`:
+    /// - Padding is distributed based on alignment: left, right, or center (extra symbol on the right if number of bytes to pad is odd).
+    /// - The implementation performs two temporary allocations to construct the padded version (much more efficient than performing repeated [`insert()`] calls).
+    ///
+    /// The result replaces the original buffer.
+    ///
+    /// ## Example
+    /// ```
+    /// use padder::*;
+    ///
+    /// let mut v: Vec<char> = vec!['y', 'o', 'o'];
+    /// let width: usize = 7;
+    /// (&mut v).pad(width, Alignment::Left, '!');  // ['y', 'o', 'o', '!', '!', '!', '!']
+    /// ```
+    ///
+    /// [`insert()`]: Vec::insert()
     fn pad(&mut self, width: usize, mode: Alignment, symbol: Self::Symbol) {
         if width < self.len() {
             match mode {
@@ -110,7 +171,6 @@ where
         }
 
         let pads = mode.pads(n_bytes_diff);
-        // This performs two new allocations - but should be faster than insert?
         let mut new_v: Vec<T> = std::iter::repeat_n(symbol, pads.left()).collect();
 
         new_v.extend_from_slice(self);
