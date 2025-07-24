@@ -163,12 +163,12 @@ mod tests_wrappers {
     fn vec_pad_to_buffer() {
         let mut buffer: Vec<u8> = Vec::new();
         let v: Vec<u8> = Vec::from(&[1u8, 2]);
-        v.pad_to_buffer(4, Alignment::Right, 89u8, &mut buffer);
+        assert_eq!(2, v.capacity());
+        assert_eq!(2, v.len());
+        pad_to_buffer(v, 4, Alignment::Right, 89u8, &mut buffer);
         assert_eq!(Vec::from(&[89u8, 89, 1, 2]), buffer);
         assert_eq!(4, buffer.capacity());
         assert_eq!(4, buffer.len());
-        assert_eq!(2, v.capacity());
-        assert_eq!(2, v.len());
     }
 
     #[test]

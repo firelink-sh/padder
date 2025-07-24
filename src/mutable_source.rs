@@ -65,13 +65,13 @@ impl MutableSource for &mut String {
                     self.truncate(byte_offset_trunc);
                 }
                 Alignment::Right => {
-                    let byte_offset_drain = self
+                    let byte_st = self
                         .char_indices()
                         .rev()
                         .nth(width - 1)
                         .map(|(byte_offset, _)| byte_offset)
                         .expect("the String did not contain enough chars!");
-                    self.drain(..byte_offset_drain);
+                    self.replace_range(..byte_st, "");
                 }
                 Alignment::Center => {
                     let st_idx: usize = (n_chars_original - width) / 2;
@@ -90,7 +90,7 @@ impl MutableSource for &mut String {
                         }
                     }
 
-                    self.drain(..st_byte);
+                    self.replace_range(..st_byte, "");
                     self.truncate(ed_byte - st_byte);
                 }
             };
@@ -166,13 +166,13 @@ impl MutableSource for &mut String {
                     self.truncate(byte_offset_trunc);
                 }
                 Alignment::Right => {
-                    let byte_offset_drain: usize = self
+                    let st_byte: usize = self
                         .char_indices()
                         .rev()
                         .nth(width - 1)
                         .map(|(byte_offset, _)| byte_offset)
                         .expect("the String did not contain enough chars!");
-                    self.drain(..byte_offset_drain);
+                    self.replace_range(..st_byte, "");
                 }
                 Alignment::Center => {
                     let st_idx: usize = (n_chars_original - width) / 2;
@@ -192,7 +192,7 @@ impl MutableSource for &mut String {
                         }
                     }
 
-                    self.drain(..st_byte);
+                    self.replace_range(..st_byte, "");
                     self.truncate(ed_byte - st_byte);
                 }
             }

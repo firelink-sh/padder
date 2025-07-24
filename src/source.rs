@@ -3,7 +3,7 @@ use crate::alignment::Alignment;
 
 /// A trait representing a width-aware, read-only data buffer that can be padded (and truncated).
 ///
-/// Types implementing [`Source`] expose the methods [`truncate_symbols`], [`pad`], and
+/// Types implementing [`Source`] expose the methods [`truncate_to_fit`], [`pad`], and
 /// [`pad_to_buffer`] for resizing the buffer to a specific width, either by trimming
 /// excess data or inserting padding symbols on one or both sides of the buffer.
 /// This is useful for formatting structures like [`String`], [`std::str`], [`Vec`], and [`std::slice`] for display or layout.
@@ -14,7 +14,7 @@ use crate::alignment::Alignment;
 /// - `Output`: the owned result of the padding operations.
 /// - `Slice<'a>`: a borrowed view into the possibly truncated buffer.
 ///
-/// [`truncate_symbols`]: Source::truncate_symbols
+/// [`truncate_to_fit`]: Source::truncate_to_fit
 /// [`pad`]: Source::pad
 /// [`pad_to_buffer`]: Source::pad_to_buffer
 pub trait Source {
@@ -27,7 +27,7 @@ pub trait Source {
 
     /// Truncates the buffer to the specified `width` by removing excess symbols according to
     /// the specified alignment `mode`.
-    fn truncate_symbols<'a>(&'a self, width: usize, mode: Alignment) -> Self::Slice<'a>;
+    fn truncate_to_fit<'a>(&'a self, width: usize, mode: Alignment) -> Self::Slice<'a>;
 
     /// Pads the buffer to the specified `width` using the given `symbol` according to the
     /// specified alignment `mode`.
@@ -55,7 +55,7 @@ impl Source for &str {
     /// - [`Alignment::Left`]: truncates from the right.
     /// - [`Alignment::Right`]: truncates from the left.
     /// - [`Alignment::Center`]: truncates equally from both ends (extra char is removed from the left if the number of chars to truncate is odd).
-    fn truncate_symbols<'a>(&'a self, width: usize, mode: Alignment) -> Self::Slice<'a> {
+    fn truncate_to_fit<'a>(&'a self, width: usize, mode: Alignment) -> Self::Slice<'a> {
         let mut st_byte: usize = 0;
         let mut ed_byte: usize = self.len();
 
@@ -98,7 +98,7 @@ impl Source for &str {
     /// Pads or truncates the &str to match the specified `width` according to the specified
     /// alignment `mode`.
     ///
-    /// See [`truncate_symbols`] for details on how truncating is performed.
+    /// See [`truncate_to_fit`] for details on how truncating is performed.
     ///
     /// If the &str is longer than `width` (in utf8 chars), it will be truncated.
     ///
@@ -121,11 +121,11 @@ impl Source for &str {
     /// assert_eq!(18, o2.capacity());  // these utf8 chars use more bytes :)
     /// assert_eq!(18, o2.len());
     /// ```
-    /// [`truncate_symbols`]: Self::truncate_symbols
+    /// [`truncate_to_fit`]: Self::truncate_to_fit
     fn pad(&self, width: usize, mode: Alignment, symbol: Self::Symbol) -> Self::Output {
         let n_chars_original: usize = self.chars().count();
         if width < n_chars_original {
-            return self.truncate_symbols(width, mode).to_string();
+            return self.truncate_to_fit(width, mode).to_string();
         }
 
         let n_chars_diff: usize = width - n_chars_original;
@@ -147,7 +147,7 @@ impl Source for &str {
     /// Pads or truncates the &str in-place to match the specified `width` according to the
     /// specified alignment `mode` by writing into the provided `buffer`.
     ///
-    /// See [`truncate_symbols`] for details on how truncating is performed.
+    /// See [`truncate_to_fit`] for details on how truncating is performed.
     ///
     /// If the &str is longer than `width` (in utf8 chars), it will be truncated.
     ///
@@ -155,7 +155,10 @@ impl Source for &str {
     /// Padding is distributed based on alignment: left, right, or center (extra symbol is added to the right if the number of chars to pad is odd).
     ///
     /// If the buffer has not preallocated enough space on the heap for the padding to fit, then
-    /// this method will allocate the amount that is required to fit the new string.
+    /// this method will perform that when pushing the symbols to the buffer. Note that if the
+    /// original buffer is very small in comparison to the required size - then this method will most
+    /// likely peform a lot of ad-hoc heap allocations. Remember to set the capacity of the buffer
+    /// appropriately before calling this method!
     ///
     /// # Examples
     /// ```
@@ -172,7 +175,7 @@ impl Source for &str {
     /// assert_eq!(21, buf.capacity());
     /// assert_eq!(21, buf.len());
     /// ```
-    /// [`truncate_symbols`]: Self::truncate_symbols
+    /// [`truncate_to_fit`]: Self::truncate_to_fit
     fn pad_to_buffer(
         &self,
         width: usize,
@@ -182,7 +185,7 @@ impl Source for &str {
     ) {
         let n_chars_original: usize = self.chars().count();
         if width < n_chars_original {
-            buffer.push_str(self.truncate_symbols(width, mode));
+            buffer.push_str(self.truncate_to_fit(width, mode));
             return;
         }
 
@@ -190,12 +193,6 @@ impl Source for &str {
         if n_chars_diff == 0 {
             buffer.push_str(self);
             return;
-        }
-
-        let n_bytes_required: usize = self.len() + n_chars_diff * symbol.len_utf8();
-        let buffer_capacity: usize = buffer.capacity();
-        if n_bytes_required > buffer_capacity {
-            buffer.reserve_exact(n_bytes_required - buffer_capacity);
         }
 
         let pads = mode.pads(n_chars_diff);
@@ -216,7 +213,7 @@ impl Source for String {
     /// - [`Alignment::Left`]: truncates from the right.
     /// - [`Alignment::Right`]: truncates from the left.
     /// - [`Alignment::Center`]: truncates equally from both ends (extra char is removed from the left if the number of chars to truncate is odd).
-    fn truncate_symbols<'a>(&'a self, width: usize, mode: Alignment) -> Self::Slice<'a> {
+    fn truncate_to_fit<'a>(&'a self, width: usize, mode: Alignment) -> Self::Slice<'a> {
         let mut st_byte: usize = 0;
         let mut ed_byte: usize = self.len();
 
@@ -258,7 +255,7 @@ impl Source for String {
 
     /// Pads or truncates the string to match the specified `width` according to the specified alignment `mode`.
     ///
-    /// See [`truncate_symbols`] for details on how truncating is performed.
+    /// See [`truncate_to_fit`] for details on how truncating is performed.
     ///
     /// If the string is longer than `width` (in utf8 chars), it will be truncated.
     ///
@@ -275,11 +272,11 @@ impl Source for String {
     /// assert_eq!(18, o.capacity());  // '風' is 3 bytes
     /// assert_eq!(18, o.len());
     /// ```
-    /// [`truncate_symbols`]: Self::truncate_symbols
+    /// [`truncate_to_fit`]: Self::truncate_to_fit
     fn pad(&self, width: usize, mode: Alignment, symbol: Self::Symbol) -> Self::Output {
         let n_chars_original: usize = self.chars().count();
         if width < n_chars_original {
-            return self.truncate_symbols(width, mode).to_string();
+            return self.truncate_to_fit(width, mode).to_string();
         }
 
         let n_chars_diff: usize = width - n_chars_original;
@@ -303,7 +300,7 @@ impl Source for String {
     /// Pads or truncates the string in-place to match the specified `width` according to the
     /// specified alignment `mode` by writing into the provided `buffer`.
     ///
-    /// See [`truncate_symbols`] for details on how truncating is performed.
+    /// See [`truncate_to_fit`] for details on how truncating is performed.
     ///
     /// If the string is longer than `width` (in utf8 chars), it will be truncated.
     ///
@@ -311,7 +308,10 @@ impl Source for String {
     /// Padding is distributed based on alignment: left, right, or center (extra symbol is added to the right if the number of chars to pad is odd).
     ///
     /// If the buffer has not preallocated enough space on the heap for the padding to fit, then
-    /// this method will allocate the amount that is required to fit the new string.
+    /// this method will perform that when pushing the symbols to the buffer. Note that if the
+    /// original buffer is very small in comparison to the required size - then this method will most
+    /// likely peform a lot of ad-hoc heap allocations. Remember to set the capacity of the buffer
+    /// appropriately before calling this method!
     ///
     /// # Examples
     /// ```
@@ -328,7 +328,7 @@ impl Source for String {
     /// assert_eq!(10, buf.capacity());
     /// assert_eq!(10, buf.len());
     /// ```
-    /// [`truncate_symbols`]: Self::truncate_symbols
+    /// [`truncate_to_fit`]: Self::truncate_to_fit
     fn pad_to_buffer(
         &self,
         width: usize,
@@ -338,7 +338,7 @@ impl Source for String {
     ) {
         let n_chars_original: usize = self.chars().count();
         if width < n_chars_original {
-            buffer.push_str(self.truncate_symbols(width, mode));
+            buffer.push_str(self.truncate_to_fit(width, mode));
             return;
         }
 
@@ -346,12 +346,6 @@ impl Source for String {
         if n_chars_diff == 0 {
             buffer.push_str(self);
             return;
-        }
-
-        let n_bytes_required: usize = self.len() + n_chars_diff * symbol.len_utf8();
-        let buffer_capacity: usize = buffer.capacity();
-        if n_bytes_required > buffer_capacity {
-            buffer.reserve_exact(n_bytes_required - buffer_capacity);
         }
 
         let pads = mode.pads(n_chars_diff);
@@ -377,7 +371,7 @@ where
     /// - [`Alignment::Left`]: truncates from the right.
     /// - [`Alignment::Right`]: truncates from the left.
     /// - [`Alignment::Center`]: truncates equally from both ends (extra item is removed from the left if the number of items to truncate is odd).
-    fn truncate_symbols<'a>(&'a self, width: usize, mode: Alignment) -> Self::Slice<'a> {
+    fn truncate_to_fit<'a>(&'a self, width: usize, mode: Alignment) -> Self::Slice<'a> {
         match mode {
             Alignment::Left => &self[..width],
             Alignment::Right => &self[(self.len() - width)..],
@@ -391,7 +385,7 @@ where
 
     /// Pads or truncates the vector to match the specified `width` according to the specified alignment `mode`.
     ///
-    /// See [`truncate_symbols`] for details on how truncating is performed.
+    /// See [`truncate_to_fit`] for details on how truncating is performed.
     ///
     /// If the vector is longer than `width` (in number of items), it will be truncated.
     ///
@@ -408,10 +402,10 @@ where
     /// assert_eq!(5, o.capacity());
     /// assert_eq!(5, o.len());
     /// ```
-    /// [`truncate_symbols`]: Self::truncate_symbols
+    /// [`truncate_to_fit`]: Self::truncate_to_fit
     fn pad(&self, width: usize, mode: Alignment, symbol: Self::Symbol) -> Self::Output {
         if width < self.len() {
-            return self.truncate_symbols(width, mode).to_vec();
+            return self.truncate_to_fit(width, mode).to_vec();
         }
 
         let n_items_diff: usize = width - self.len();
@@ -432,7 +426,7 @@ where
     /// Pads or truncates the vector in-place to match the specified `width` according to the
     /// specified alignment `mode` by writing into the provided `buffer`.
     ///
-    /// See [`truncate_symbols`] for details on how truncating is performed.
+    /// See [`truncate_to_fit`] for details on how truncating is performed.
     ///
     /// If the vector is longer than `width` (in number of items), it will be truncated.
     ///
@@ -440,7 +434,10 @@ where
     /// Padding is distributed based on alignment: left, right, or center (extra symbol is added to the right if the number of items to pad is odd).
     ///
     /// If the buffer has not preallocated enough space on the heap for the padding to fit, then
-    /// this method will allocate the amount that is required to fit the new vector.
+    /// this method will perform that when pushing the symbols to the buffer. Note that if the
+    /// original buffer is very small in comparison to the required size - then this method will most
+    /// likely peform a lot of ad-hoc heap allocations. Remember to set the capacity of the buffer
+    /// appropriately before calling this method!
     ///
     /// # Examples
     /// ```
@@ -476,7 +473,7 @@ where
     ///     assert_eq!(expected.len(), buf.len());
     /// }
     /// ```
-    /// [`truncate_symbols`]: Self::truncate_symbols
+    /// [`truncate_to_fit`]: Self::truncate_to_fit
     fn pad_to_buffer(
         &self,
         width: usize,
@@ -485,7 +482,7 @@ where
         buffer: &mut Self::Buffer,
     ) {
         if width < self.len() {
-            buffer.extend_from_slice(self.truncate_symbols(width, mode));
+            buffer.extend_from_slice(self.truncate_to_fit(width, mode));
             return;
         }
 
@@ -493,12 +490,6 @@ where
         if n_items_diff == 0 {
             buffer.extend_from_slice(self);
             return;
-        }
-
-        let n_items_required: usize = self.len() + n_items_diff;
-        let buffer_capacity: usize = buffer.capacity();
-        if n_items_required > buffer_capacity {
-            buffer.reserve_exact(n_items_required - buffer_capacity);
         }
 
         let pads = mode.pads(n_items_diff);
@@ -525,7 +516,7 @@ where
     /// - [`Alignment::Left`]: truncates from the right.
     /// - [`Alignment::Right`]: truncates from the left.
     /// - [`Alignment::Center`]: truncates equally from both ends (extra item is removed from the left if the number of items to truncate is odd).
-    fn truncate_symbols<'a>(&'a self, width: usize, mode: Alignment) -> Self::Slice<'a> {
+    fn truncate_to_fit<'a>(&'a self, width: usize, mode: Alignment) -> Self::Slice<'a> {
         match mode {
             Alignment::Left => &self[..width],
             Alignment::Right => &self[(self.len() - width)..],
@@ -539,7 +530,7 @@ where
 
     /// Pads or truncates the slice to match the specified `width` according to the specified alignment `mode`.
     ///
-    /// See [`truncate_symbols`] for details on how truncating is performed.
+    /// See [`truncate_to_fit`] for details on how truncating is performed.
     ///
     /// If the slice is longer than `width` (in number of items), it will be truncated.
     ///
@@ -556,10 +547,10 @@ where
     /// assert_eq!(9, o.capacity());
     /// assert_eq!(9, o.len());
     /// ```
-    /// [`truncate_symbols`]: Self::truncate_symbols
+    /// [`truncate_to_fit`]: Self::truncate_to_fit
     fn pad(&self, width: usize, mode: Alignment, symbol: Self::Symbol) -> Self::Output {
         if width < self.len() {
-            return self.truncate_symbols(width, mode).to_vec();
+            return self.truncate_to_fit(width, mode).to_vec();
         }
 
         let n_items_diff: usize = width - self.len();
@@ -579,7 +570,7 @@ where
     /// Pads or truncates the slice in-place to match the specified `width` according to the
     /// specified alignment `mode` by writing into the provided `buffer`.
     ///
-    /// See [`truncate_symbols`] for details on how truncating is performed.
+    /// See [`truncate_to_fit`] for details on how truncating is performed.
     ///
     /// If the slice is longer than `width` (in number of items), it will be truncated.
     ///
@@ -587,7 +578,10 @@ where
     /// Padding is distributed based on alignment: left, right, or center (extra symbol is added to the right if the number of items to pad is odd).
     ///
     /// If the buffer has not preallocated enough space on the heap for the padding to fit, then
-    /// this method will allocate the amount that is required to fit the new vector.
+    /// this method will perform that when pushing the symbols to the buffer. Note that if the
+    /// original buffer is very small in comparison to the required size - then this method will most
+    /// likely peform a lot of ad-hoc heap allocations. Remember to set the capacity of the buffer
+    /// appropriately before calling this method!
     ///
     /// # Examples
     /// ```
@@ -599,7 +593,7 @@ where
     /// assert_eq!(7, o.capacity());
     /// assert_eq!(7, o.len());
     /// ```
-    /// [`truncate_symbols`]: Self::truncate_symbols
+    /// [`truncate_to_fit`]: Self::truncate_to_fit
     fn pad_to_buffer(
         &self,
         width: usize,
@@ -608,7 +602,7 @@ where
         buffer: &mut Self::Buffer,
     ) {
         if width < self.len() {
-            buffer.extend_from_slice(self.truncate_symbols(width, mode));
+            buffer.extend_from_slice(self.truncate_to_fit(width, mode));
             return;
         }
 
@@ -637,6 +631,7 @@ mod tests_str {
         let output: String = source.pad(width, Alignment::Left, '🤠');
         let expected: &str = "Artorias🤠🤠";
         assert_eq!(expected, output);
+        assert_eq!(expected.len(), output.len());
     }
 
     #[test]
@@ -666,7 +661,7 @@ mod tests_str {
     }
 
     #[test]
-    fn pad_sliced_center_odd() {
+    fn truncated_center_odd() {
         let width: usize = 3;
         let source: &str = "  ¡@£   ";
         let output: String = source.pad(width, Alignment::Center, '¨');
@@ -675,7 +670,7 @@ mod tests_str {
     }
 
     #[test]
-    fn pad_sliced_center_even() {
+    fn truncated_center_even() {
         let width: usize = 6;
         let source: &str = "1¡§øł0k0äツ";
         let expected: &str = "§øł0k0";
@@ -683,7 +678,7 @@ mod tests_str {
     }
 
     #[test]
-    fn pad_sliced_left() {
+    fn truncated_left() {
         let width: usize = 6;
         let source: &str = "1¡§øł0k0äツ";
         let expected: &str = "1¡§øł0";
@@ -691,7 +686,7 @@ mod tests_str {
     }
 
     #[test]
-    fn pad_sliced_right() {
+    fn truncated_right() {
         let width: usize = 6;
         let source: &str = "1¡§øł0k0äツ";
         let expected: &str = "ł0k0äツ";
@@ -761,7 +756,7 @@ mod tests_string {
     }
 
     #[test]
-    fn pad_sliced_left() {
+    fn truncated_left() {
         let width: usize = 2;
         let source = String::from("123489700+8471983kbnlajvbroiaye87r687¨ä¨*ÄÂ*ÅWoU)P(FU893y");
         let output: String = source.pad(width, Alignment::Left, '|');
@@ -770,7 +765,7 @@ mod tests_string {
     }
 
     #[test]
-    fn pad_sliced_center_odd_odd() {
+    fn truncated_center_odd_odd() {
         let width: usize = 9;
         let source = String::from("1¡§øł0k0äツ+0/");
         let expected: &str = "§øł0k0äツ+";
@@ -778,7 +773,7 @@ mod tests_string {
     }
 
     #[test]
-    fn pad_sliced_center_odd_even() {
+    fn truncated_center_odd_even() {
         let width: usize = 3;
         let source = String::from("1234");
         let expected: &str = "123";
@@ -786,7 +781,7 @@ mod tests_string {
     }
 
     #[test]
-    fn pad_sliced_center_even_even() {
+    fn truncated_center_even_even() {
         let width: usize = 6;
         let source = String::from("“ª€][æø0");
         let expected: &str = "ª€][æø";
@@ -794,7 +789,7 @@ mod tests_string {
     }
 
     #[test]
-    fn pad_sliced_center_even_odd() {
+    fn truncated_center_even_odd() {
         let width: usize = 6;
         let source = String::from("“ª€][æ🤠ø0");
         let expected: &str = "ª€][æ🤠";
