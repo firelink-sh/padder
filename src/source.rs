@@ -1,6 +1,21 @@
 use crate::alignment::Alignment;
 
-/// Immutable source to pad.
+/// A trait representing a width-aware, read-only data buffer that can be padded (and truncated).
+///
+/// Types implementing [`Source`] expose the methods [`truncate_symbols`], [`pad`], and
+/// [`pad_to_buffer`] for resizing the buffer to a specific width, either by trimming
+/// excess data or inserting padding symbols on one or both sides of the buffer.
+/// This is useful for formatting structures like [`String`], [`std::str`], [`Vec`], and [`std::slice`] for display or layout.
+///
+/// # Associated Types
+/// - `Symbol`: the element used for padding (e.g., `char`, `u8`, or anything that implements [`Copy`]).
+/// - `Buffer`: a mutable buffer type that is used when calling [`pad_to_buffer`].
+/// - `Output`: the owned result of the padding operations.
+/// - `Slice<'a>`: a borrowed view into the possibly truncated buffer.
+///
+/// [`truncate_symbols`]: Source::truncate_symbols
+/// [`pad`]: Source::pad
+/// [`pad_to_buffer`]: Source::pad_to_buffer
 pub trait Source {
     type Symbol;
     type Buffer;
@@ -9,11 +24,16 @@ pub trait Source {
     where
         Self: 'a;
 
-    ///
+    /// Truncates the buffer to the specified `width` by removing excess symbols according to
+    /// the specified alignment `mode`.
     fn truncate_symbols<'a>(&'a self, width: usize, mode: Alignment) -> Self::Slice<'a>;
-    ///
+
+    /// Pads the buffer to the specified `width` using the given `symbol` according to the
+    /// specified alignment `mode`.
     fn pad(&self, width: usize, mode: Alignment, symbol: Self::Symbol) -> Self::Output;
-    ///
+
+    /// Performs in-place padding of `width` amount of `symbols` according to the specified
+    /// alignment `mode` into the provided `buffer`.
     fn pad_to_buffer(
         &self,
         width: usize,
@@ -29,7 +49,11 @@ impl Source for &str {
     type Output = String;
     type Slice<'a> = Self;
 
-    ///
+    /// Truncates the &str to match the specified `width` according to the specified alignment
+    /// `mode`.
+    /// - [`Alignment::Left`]: truncates from the right.
+    /// - [`Alignment::Right`]: truncates from the left.
+    /// - [`Alignment::Center`]: truncates equally from both ends (extra char is removed from the left if the number of chars to truncate is odd).
     fn truncate_symbols<'a>(&'a self, width: usize, mode: Alignment) -> Self::Slice<'a> {
         let mut st_byte: usize = 0;
         let mut ed_byte: usize = self.len();
@@ -70,7 +94,32 @@ impl Source for &str {
         &self[st_byte..ed_byte]
     }
 
+    /// Pads or truncates the &str to match the specified `width` according to the specified
+    /// alignment `mode`.
     ///
+    /// See [`truncate_symbols`] for details on how truncating is performed.
+    ///
+    /// If the &str is longer than `width` (in utf8 chars), it will be truncated.
+    /// If the &str is shorter than `width`, it will be padded using the `symbol`.
+    /// - Padding is distributed based on alignment: left, right, or center (extra symbol is added to the right if the number of chars to pad is and odd).
+    ///
+    /// # Examples
+    /// ```
+    /// use padder::*;
+    ///
+    /// let s1 = "yabadoo";
+    /// let o1 = s1.pad(10, Alignment::Right, '9');
+    /// assert_eq!("999yabadoo", o1);
+    /// assert_eq!(10, o1.capacity());  // all of these chars are just 1 byte
+    /// assert_eq!(10, o1.len());
+    ///
+    /// let s2 = "øĸœ";
+    /// let o2 = s2.pad(6, Alignment::Center, '🦔');
+    /// assert_eq!("🦔øĸœ🦔🦔", o2);
+    /// assert_eq!(18, o2.capacity());  // these utf8 chars use more bytes :)
+    /// assert_eq!(18, o2.len());
+    /// ```
+    /// [`truncate_symbols`]: Self::truncate_symbols
     fn pad(&self, width: usize, mode: Alignment, symbol: Self::Symbol) -> Self::Output {
         let n_chars_original: usize = self.chars().count();
         if width < n_chars_original {
@@ -233,7 +282,7 @@ impl Source for String {
 
 impl<T> Source for Vec<T>
 where
-    T: Copy + Sized + std::fmt::Debug,
+    T: Copy + Sized,
 {
     type Symbol = T;
     type Buffer = Vec<T>;
@@ -310,7 +359,7 @@ where
 
 impl<T> Source for &[T]
 where
-    T: Copy + Sized + std::fmt::Debug,
+    T: Copy + Sized,
 {
     type Symbol = T;
     type Buffer = Vec<T>;
