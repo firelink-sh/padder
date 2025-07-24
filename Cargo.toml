@@ -26,8 +26,6 @@ test = true
 bench = true
 crate-type = [ "lib" ]
 
-[dependencies]
-
 [features]
 default = []
 enable_unsafe = []

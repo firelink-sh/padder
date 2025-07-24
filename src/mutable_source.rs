@@ -26,7 +26,6 @@ impl MutableSource for &mut String {
     type Symbol = char;
     type Buffer = Self;
 
-    #[cfg(not(feature = "enable_unsafe"))]
     /// Pads or truncates the string to match the specified width with a given alignment.
     ///
     /// If the string is longer than `width` (in utf8 chars), it will be truncated according to the `mode`:
@@ -52,6 +51,7 @@ impl MutableSource for &mut String {
     /// assert_eq!(23 + 2 * 3, s.capacity());  // '¡' = 2 bytes & 'Ä' = 2 bytes
     /// ```
     /// [`insert()`]: String::insert()
+    #[cfg(not(feature = "enable_unsafe"))]
     fn pad(&mut self, width: usize, mode: Alignment, symbol: Self::Symbol) {
         let n_chars_original: usize = self.chars().count();
         if width < n_chars_original {
@@ -65,13 +65,13 @@ impl MutableSource for &mut String {
                     self.truncate(byte_offset_trunc);
                 }
                 Alignment::Right => {
-                    let byte_offset_drain = self
+                    let byte_st = self
                         .char_indices()
                         .rev()
                         .nth(width - 1)
                         .map(|(byte_offset, _)| byte_offset)
                         .expect("the String did not contain enough chars!");
-                    self.drain(..byte_offset_drain);
+                    self.replace_range(..byte_st, "");
                 }
                 Alignment::Center => {
                     let st_idx: usize = (n_chars_original - width) / 2;
@@ -90,7 +90,7 @@ impl MutableSource for &mut String {
                         }
                     }
 
-                    self.drain(..st_byte);
+                    self.replace_range(..st_byte, "");
                     self.truncate(ed_byte - st_byte);
                 }
             };
@@ -113,7 +113,6 @@ impl MutableSource for &mut String {
         **self = new_s;
     }
 
-    #[cfg(feature = "enable_unsafe")]
     /// Pads or truncates the string to match the specified width with a given alignment.
     ///
     /// If the string is longer than `width` (in utf8 chars), it will be truncated according to the `mode`:
@@ -151,6 +150,7 @@ impl MutableSource for &mut String {
     /// ```
     /// [`set_len()`]: Vec::set_len()
     /// [`copy_within()`]: https://doc.rust-lang.org/std/primitive.slice.html#method.copy_within
+    #[cfg(feature = "enable_unsafe")]
     fn pad(&mut self, width: usize, mode: Alignment, symbol: Self::Symbol) {
         let n_chars_original: usize = self.chars().count();
         let n_bytes_original: usize = self.len();
@@ -166,13 +166,13 @@ impl MutableSource for &mut String {
                     self.truncate(byte_offset_trunc);
                 }
                 Alignment::Right => {
-                    let byte_offset_drain: usize = self
+                    let st_byte: usize = self
                         .char_indices()
                         .rev()
                         .nth(width - 1)
                         .map(|(byte_offset, _)| byte_offset)
                         .expect("the String did not contain enough chars!");
-                    self.drain(..byte_offset_drain);
+                    self.replace_range(..st_byte, "");
                 }
                 Alignment::Center => {
                     let st_idx: usize = (n_chars_original - width) / 2;
@@ -192,7 +192,7 @@ impl MutableSource for &mut String {
                         }
                     }
 
-                    self.drain(..st_byte);
+                    self.replace_range(..st_byte, "");
                     self.truncate(ed_byte - st_byte);
                 }
             }
