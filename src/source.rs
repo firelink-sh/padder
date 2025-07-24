@@ -9,14 +9,17 @@ pub trait Source {
     where
         Self: 'a;
 
-    fn slice<'a>(&'a self, width: usize, mode: Alignment) -> Self::Slice<'a>;
+    ///
+    fn truncate_symbols<'a>(&'a self, width: usize, mode: Alignment) -> Self::Slice<'a>;
+    ///
     fn pad(&self, width: usize, mode: Alignment, symbol: Self::Symbol) -> Self::Output;
+    ///
     fn pad_to_buffer(
         &self,
         width: usize,
         mode: Alignment,
         symbol: Self::Symbol,
-        buffer: &mut Self::Output,
+        buffer: &mut Self::Buffer,
     );
 }
 
@@ -26,7 +29,8 @@ impl Source for &str {
     type Output = String;
     type Slice<'a> = Self;
 
-    fn slice<'a>(&'a self, width: usize, mode: Alignment) -> Self::Slice<'a> {
+    ///
+    fn truncate_symbols<'a>(&'a self, width: usize, mode: Alignment) -> Self::Slice<'a> {
         let mut st_byte: usize = 0;
         let mut ed_byte: usize = self.len();
 
@@ -36,7 +40,7 @@ impl Source for &str {
                     .char_indices()
                     .nth(width)
                     .map(|(byte_offset, _)| byte_offset)
-                    .expect("the String did not contain enough chars!");
+                    .expect("the &str did not contain enough chars!");
             }
             Alignment::Right => {
                 st_byte = self
@@ -44,7 +48,7 @@ impl Source for &str {
                     .rev()
                     .nth(width - 1)
                     .map(|(byte_offset, _)| byte_offset)
-                    .expect("the String did not contain enough chars!");
+                    .expect("the &str did not contain enough chars!");
             }
             Alignment::Center => {
                 let st_idx: usize = (self.chars().count() - width) / 2;
@@ -53,6 +57,7 @@ impl Source for &str {
                 for (idx, (byte_offset, _)) in self.char_indices().enumerate() {
                     if idx == st_idx {
                         st_byte = byte_offset;
+                        continue;
                     }
                     if idx == ed_idx {
                         ed_byte = byte_offset;
@@ -65,21 +70,22 @@ impl Source for &str {
         &self[st_byte..ed_byte]
     }
 
+    ///
     fn pad(&self, width: usize, mode: Alignment, symbol: Self::Symbol) -> Self::Output {
-        let n_chars_current: usize = self.chars().count();
-        if width < n_chars_current {
-            return self.slice(width, mode).to_string();
+        let n_chars_original: usize = self.chars().count();
+        if width < n_chars_original {
+            return self.truncate_symbols(width, mode).to_string();
         }
 
-        let n_chars_diff: usize = width - n_chars_current;
+        let n_chars_diff: usize = width - n_chars_original;
         if n_chars_diff == 0 {
             return self.to_string();
         }
 
         let n_bytes_required: usize = self.len() + n_chars_diff * symbol.len_utf8();
         let mut output = String::with_capacity(n_bytes_required);
-        let pads = mode.pads(n_chars_diff);
 
+        let pads = mode.pads(n_chars_diff);
         (0..pads.left()).for_each(|_| output.push(symbol));
         output.push_str(self);
         (0..pads.right()).for_each(|_| output.push(symbol));
@@ -87,27 +93,31 @@ impl Source for &str {
         output
     }
 
+    ///
     fn pad_to_buffer(
         &self,
         width: usize,
         mode: Alignment,
         symbol: Self::Symbol,
-        buffer: &mut Self::Output,
+        buffer: &mut Self::Buffer,
     ) {
-        let n_chars_current: usize = self.chars().count();
-        if width < n_chars_current {
-            buffer.push_str(self.slice(width, mode));
+        let n_chars_original: usize = self.chars().count();
+        if width < n_chars_original {
+            buffer.push_str(self.truncate_symbols(width, mode));
             return;
         }
 
-        let n_chars_diff: usize = width - n_chars_current;
+        let n_chars_diff: usize = width - n_chars_original;
         if n_chars_diff == 0 {
             buffer.push_str(self);
             return;
         }
 
-        // Preemptively allocate extra memory before padding.
-        buffer.reserve_exact(n_chars_diff * symbol.len_utf8());
+        let n_bytes_required: usize = self.len() + n_chars_diff * symbol.len_utf8();
+        let buffer_capacity: usize = buffer.capacity();
+        if n_bytes_required > buffer_capacity {
+            buffer.reserve_exact(n_bytes_required - buffer_capacity);
+        }
 
         let pads = mode.pads(n_chars_diff);
         (0..pads.left()).for_each(|_| buffer.push(symbol));
@@ -122,7 +132,8 @@ impl Source for String {
     type Output = Self;
     type Slice<'a> = &'a str;
 
-    fn slice<'a>(&'a self, width: usize, mode: Alignment) -> Self::Slice<'a> {
+    ///
+    fn truncate_symbols<'a>(&'a self, width: usize, mode: Alignment) -> Self::Slice<'a> {
         let mut st_byte: usize = 0;
         let mut ed_byte: usize = self.len();
 
@@ -138,21 +149,18 @@ impl Source for String {
                 st_byte = self
                     .char_indices()
                     .rev()
-                    // Since we are reversing from the start byte we want the byte offset
-                    // of the previous char - because the slice range is inclusive.
                     .nth(width - 1)
                     .map(|(byte_offset, _)| byte_offset)
                     .expect("the String did not contain enough chars!");
             }
             Alignment::Center => {
-                // If `self.chars().count() - width` is an odd number - then the
-                // extra character will be removed from the right.
                 let st_idx: usize = (self.chars().count() - width) / 2;
                 let ed_idx: usize = st_idx + width;
 
                 for (idx, (byte_offset, _)) in self.char_indices().enumerate() {
                     if idx == st_idx {
                         st_byte = byte_offset;
+                        continue;
                     }
                     if idx == ed_idx {
                         ed_byte = byte_offset;
@@ -165,55 +173,58 @@ impl Source for String {
         &self[st_byte..ed_byte]
     }
 
+    ///
     fn pad(&self, width: usize, mode: Alignment, symbol: Self::Symbol) -> Self::Output {
-        let n_chars_current: usize = self.chars().count();
-        if width < n_chars_current {
-            return self.slice(width, mode).to_string();
+        let n_chars_original: usize = self.chars().count();
+        if width < n_chars_original {
+            return self.truncate_symbols(width, mode).to_string();
         }
 
-        let n_chars_diff: usize = width - n_chars_current;
+        let n_chars_diff: usize = width - n_chars_original;
         if n_chars_diff == 0 {
             return self.clone();
         }
 
-        let n_bytes_required: usize = self.len() + n_chars_diff * symbol.len_utf8();
-        let mut output = String::with_capacity(n_bytes_required);
         let pads = mode.pads(n_chars_diff);
+        let n_bytes_required: usize = self.len() + n_chars_diff * symbol.len_utf8();
 
+        // This is ~50% faster for small strings compared to using `std::iter::repeat_n`, and for
+        // large strings (>20_000) we still get about ~10% increased performance.
+        // Most likely llvm optimization magic :)
+        let mut output = String::with_capacity(n_bytes_required);
         (0..pads.left()).for_each(|_| output.push(symbol));
         output.push_str(self);
         (0..pads.right()).for_each(|_| output.push(symbol));
-
         output
     }
 
+    ///
     fn pad_to_buffer(
         &self,
         width: usize,
         mode: Alignment,
         symbol: Self::Symbol,
-        buffer: &mut Self::Output,
+        buffer: &mut Self::Buffer,
     ) {
-        let n_chars_current: usize = self.chars().count();
-        if width < n_chars_current {
-            buffer.push_str(self.slice(width, mode));
+        let n_chars_original: usize = self.chars().count();
+        if width < n_chars_original {
+            buffer.push_str(self.truncate_symbols(width, mode));
             return;
         }
 
-        let n_chars_diff: usize = width - n_chars_current;
+        let n_chars_diff: usize = width - n_chars_original;
         if n_chars_diff == 0 {
             buffer.push_str(self);
             return;
         }
 
-        // We don't have to check that the capacity of the `buffer` is too
-        // small - because the `reserve_exact()` method checks this for us
-        // and does nothing if it is already at enough capacity.
-        //
-        // This effectively becomes a no-op in such a case.
-        buffer.reserve_exact(n_chars_diff * symbol.len_utf8());
-        let pads = mode.pads(n_chars_diff);
+        let n_bytes_required: usize = self.len() + n_chars_diff * symbol.len_utf8();
+        let buffer_capacity: usize = buffer.capacity();
+        if n_bytes_required > buffer_capacity {
+            buffer.reserve_exact(n_bytes_required - buffer_capacity);
+        }
 
+        let pads = mode.pads(n_chars_diff);
         (0..pads.left()).for_each(|_| buffer.push(symbol));
         buffer.push_str(self);
         (0..pads.right()).for_each(|_| buffer.push(symbol));
@@ -222,7 +233,7 @@ impl Source for String {
 
 impl<T> Source for Vec<T>
 where
-    T: Copy + Sized,
+    T: Copy + Sized + std::fmt::Debug,
 {
     type Symbol = T;
     type Buffer = Vec<T>;
@@ -232,7 +243,8 @@ where
     where
         T: 'a;
 
-    fn slice<'a>(&'a self, width: usize, mode: Alignment) -> Self::Slice<'a> {
+    ///
+    fn truncate_symbols<'a>(&'a self, width: usize, mode: Alignment) -> Self::Slice<'a> {
         match mode {
             Alignment::Left => &self[..width],
             Alignment::Right => &self[(self.len() - width)..],
@@ -244,56 +256,61 @@ where
         }
     }
 
+    ///
     fn pad(&self, width: usize, mode: Alignment, symbol: Self::Symbol) -> Self::Output {
         if width < self.len() {
-            return self.slice(width, mode).to_vec();
+            return self.truncate_symbols(width, mode).to_vec();
         }
 
-        let n_bytes_diff: usize = width - self.len();
-        if n_bytes_diff == 0 {
+        let n_items_diff: usize = width - self.len();
+        if n_items_diff == 0 {
             return self.clone();
         }
 
-        let mut output = Vec::with_capacity(width);
-        let pads = mode.pads(n_bytes_diff);
-
-        (0..pads.left()).for_each(|_| output.push(symbol));
+        // Using `std::iter::repeat_n()` is slower for small buffers (50% slower for ~<1000 items),
+        // but quickly becomes much more efficient than repeated `self.push(symbol)` (60% to 90% faster).
+        let pads = mode.pads(n_items_diff);
+        let mut output: Vec<T> = std::iter::repeat_n(symbol, pads.left()).collect::<Vec<T>>();
         output.extend_from_slice(self);
-        (0..pads.right()).for_each(|_| output.push(symbol));
-
+        output.extend_from_slice(&std::iter::repeat_n(symbol, pads.right()).collect::<Vec<T>>());
         output
     }
 
+    ///
     fn pad_to_buffer(
         &self,
         width: usize,
         mode: Alignment,
         symbol: Self::Symbol,
-        buffer: &mut Self::Output,
+        buffer: &mut Self::Buffer,
     ) {
         if width < self.len() {
-            buffer.extend_from_slice(self.slice(width, mode));
+            buffer.extend_from_slice(self.truncate_symbols(width, mode));
             return;
         }
 
-        let n_bytes_diff: usize = width - self.len();
-        if n_bytes_diff == 0 {
+        let n_items_diff: usize = width - self.len();
+        if n_items_diff == 0 {
             buffer.extend_from_slice(self);
             return;
         }
 
-        buffer.reserve_exact(n_bytes_diff);
-        let pads = mode.pads(n_bytes_diff);
+        let n_items_required: usize = self.len() + n_items_diff;
+        let buffer_capacity: usize = buffer.capacity();
+        if n_items_required > buffer_capacity {
+            buffer.reserve_exact(n_items_required - buffer_capacity);
+        }
 
-        (0..pads.left()).for_each(|_| buffer.push(symbol));
+        let pads = mode.pads(n_items_diff);
+        buffer.extend_from_slice(&std::iter::repeat_n(symbol, pads.left()).collect::<Vec<T>>());
         buffer.extend_from_slice(self);
-        (0..pads.right()).for_each(|_| buffer.push(symbol));
+        buffer.extend_from_slice(&std::iter::repeat_n(symbol, pads.right()).collect::<Vec<T>>());
     }
 }
 
 impl<T> Source for &[T]
 where
-    T: Copy + Sized,
+    T: Copy + Sized + std::fmt::Debug,
 {
     type Symbol = T;
     type Buffer = Vec<T>;
@@ -303,7 +320,8 @@ where
     where
         T: 'a;
 
-    fn slice<'a>(&'a self, width: usize, mode: Alignment) -> Self::Slice<'a> {
+    ///
+    fn truncate_symbols<'a>(&'a self, width: usize, mode: Alignment) -> Self::Slice<'a> {
         match mode {
             Alignment::Left => &self[..width],
             Alignment::Right => &self[(self.len() - width)..],
@@ -317,48 +335,47 @@ where
 
     fn pad(&self, width: usize, mode: Alignment, symbol: Self::Symbol) -> Self::Output {
         if width < self.len() {
-            return self.slice(width, mode).to_vec();
+            return self.truncate_symbols(width, mode).to_vec();
         }
 
-        let n_bytes_diff: usize = width - self.len();
-        if n_bytes_diff == 0 {
+        let n_items_diff: usize = width - self.len();
+        if n_items_diff == 0 {
             return self.to_vec();
         }
 
-        let mut output = Vec::with_capacity(width);
-        let pads = mode.pads(n_bytes_diff);
-
-        (0..pads.left()).for_each(|_| output.push(symbol));
+        let pads = mode.pads(n_items_diff);
+        let mut output: Vec<T> = std::iter::repeat_n(symbol, pads.left()).collect::<Vec<T>>();
         output.extend_from_slice(self);
-        (0..pads.right()).for_each(|_| output.push(symbol));
+        output.extend_from_slice(&std::iter::repeat_n(symbol, pads.right()).collect::<Vec<T>>());
 
+        output.shrink_to_fit();
         output
     }
 
+    ///
     fn pad_to_buffer(
         &self,
         width: usize,
         mode: Alignment,
         symbol: Self::Symbol,
-        buffer: &mut Self::Output,
+        buffer: &mut Self::Buffer,
     ) {
         if width < self.len() {
-            buffer.extend_from_slice(self.slice(width, mode));
+            buffer.extend_from_slice(self.truncate_symbols(width, mode));
             return;
         }
 
-        let n_bytes_diff: usize = width - self.len();
-        if n_bytes_diff == 0 {
+        let n_items_diff: usize = width - self.len();
+        if n_items_diff == 0 {
             buffer.extend_from_slice(self);
             return;
         }
 
-        buffer.reserve_exact(n_bytes_diff);
-        let pads = mode.pads(n_bytes_diff);
-
-        (0..pads.left()).for_each(|_| buffer.push(symbol));
+        let pads = mode.pads(n_items_diff);
+        buffer.extend_from_slice(&std::iter::repeat_n(symbol, pads.left()).collect::<Vec<T>>());
         buffer.extend_from_slice(self);
-        (0..pads.right()).for_each(|_| buffer.push(symbol));
+        buffer.extend_from_slice(&std::iter::repeat_n(symbol, pads.right()).collect::<Vec<T>>());
+        buffer.shrink_to_fit();
     }
 }
 
