@@ -722,6 +722,28 @@ mod tests_str {
         let expected: &str = "ツツツツseKiroツツツツツ";
         assert_eq!(expected, buffer);
     }
+
+    #[test]
+    fn pad_to_buffer_truncated() {
+        let width: usize = 2;
+        let source: &str = "seKiro";
+        let mut buffer: String = String::with_capacity(width);
+        source.pad_to_buffer(width, Alignment::Center, 'ツ', &mut buffer);
+        let expected: &str = "Ki";
+        assert_eq!(expected, buffer);
+    }
+
+    #[test]
+    fn pad_to_buffer_same_width() {
+        let width: usize = 6;
+        let source: &str = "godwyn";
+        let mut buffer: String = String::with_capacity(width);
+        source.pad_to_buffer(width, Alignment::Center, 'ツ', &mut buffer);
+        let expected = String::from("godwyn");
+        assert_eq!(expected, buffer);
+        assert_eq!(expected.capacity(), buffer.capacity());
+        assert_eq!(expected.len(), buffer.len());
+    }
 }
 
 #[cfg(test)]
@@ -764,6 +786,16 @@ mod tests_string {
         assert_eq!(expected, output);
     }
 
+    #[test]
+    fn truncated_right() {
+        let width: usize = 2;
+        let source = String::from("123489700+8471983kbnlajvbroiaye87r687¨ä¨*ÄÂ*ÅWoU)P(FU893y");
+        let output: String = source.pad(width, Alignment::Right, '|');
+        let expected = String::from("3y");
+        assert_eq!(expected, output);
+        assert_eq!(expected.capacity(), output.capacity());
+        assert_eq!(expected.len(), output.len());
+    }
     #[test]
     fn truncated_center_odd_odd() {
         let width: usize = 9;
@@ -855,6 +887,30 @@ mod tests_string {
         assert_eq!(expected.capacity(), buffer.capacity());
         assert_eq!(expected, buffer);
     }
+
+    #[test]
+    fn pad_to_buffer_truncated() {
+        let width: usize = 6;
+        let source = String::from("mount gelmir");
+        let mut buffer = String::with_capacity(width);
+        source.pad_to_buffer(width, Alignment::Right, ';', &mut buffer);
+        let expected = String::from("gelmir");
+        assert_eq!(expected.len(), buffer.len());
+        assert_eq!(expected.capacity(), buffer.capacity());
+        assert_eq!(expected, buffer);
+    }
+
+    #[test]
+    fn pad_to_buffer_same_width() {
+        let width: usize = 12;
+        let source = String::from("mount„gelmir");
+        let mut buffer = String::with_capacity(width + 2);
+        source.pad_to_buffer(width, Alignment::Right, ';', &mut buffer);
+        let expected = String::from("mount„gelmir");
+        assert_eq!(expected.len(), buffer.len());
+        assert_eq!(expected.capacity(), buffer.capacity());
+        assert_eq!(expected, buffer);
+    }
 }
 
 #[cfg(test)]
@@ -902,7 +958,27 @@ mod tests_vec {
     }
 
     #[test]
-    fn slice_to_fit_even() {
+    fn truncated_left() {
+        let width: usize = 2;
+        let expected = Vec::from(&[190u8, 1]);
+        let source = Vec::from(&[190u8, 1, 98, 190]);
+        let output = source.pad(width, Alignment::Left, 123u8);
+        assert_eq!(expected.len(), output.len());
+        assert_eq!(expected, output);
+    }
+
+    #[test]
+    fn truncated_right() {
+        let width: usize = 2;
+        let expected = Vec::from(&[98u8, 190]);
+        let source = Vec::from(&[190u8, 1, 98, 190]);
+        let output = source.pad(width, Alignment::Right, 123u8);
+        assert_eq!(expected.len(), output.len());
+        assert_eq!(expected, output);
+    }
+
+    #[test]
+    fn truncated_even() {
         let width: usize = 2;
         let expected = Vec::from(&[1u8, 98]);
         let source = Vec::from(&[190u8, 1, 98, 190]);
@@ -912,7 +988,7 @@ mod tests_vec {
     }
 
     #[test]
-    fn slice_to_fit_odd() {
+    fn truncated_odd() {
         let width: usize = 1;
         let expected = Vec::from(&[1u8]);
         let source = Vec::from(&[190u8, 1, 98, 190]);
@@ -979,6 +1055,30 @@ mod tests_vec {
         source.pad_to_buffer(width, Alignment::Center, 148u8, &mut buffer);
         let mut expected = Vec::with_capacity(width);
         expected.extend_from_slice(&[148u8, 1, 0, 1, 2, 148]);
+        assert_eq!(expected.len(), buffer.len());
+        assert_eq!(expected.capacity(), buffer.capacity());
+        assert_eq!(expected, buffer);
+    }
+
+    #[test]
+    fn pad_to_buffer_truncated() {
+        let width: usize = 2;
+        let source = Vec::from(&[1u8, 0, 1, 2]);
+        let mut buffer = Vec::with_capacity(width);
+        source.pad_to_buffer(width, Alignment::Center, 148u8, &mut buffer);
+        let expected = Vec::from(&[0u8, 1]);
+        assert_eq!(expected.len(), buffer.len());
+        assert_eq!(expected.capacity(), buffer.capacity());
+        assert_eq!(expected, buffer);
+    }
+
+    #[test]
+    fn pad_to_buffer_same_width() {
+        let width: usize = 4;
+        let source = Vec::from(&[1u8, 0, 1, 2]);
+        let mut buffer = Vec::with_capacity(width);
+        source.pad_to_buffer(width, Alignment::Center, 148u8, &mut buffer);
+        let expected = Vec::from(&[1u8, 0, 1, 2]);
         assert_eq!(expected.len(), buffer.len());
         assert_eq!(expected.capacity(), buffer.capacity());
         assert_eq!(expected, buffer);
@@ -1054,5 +1154,75 @@ mod tests_slice {
         assert_eq!(expected.capacity(), output.capacity());
         assert_eq!(expected.len(), output.len());
         assert_eq!(expected, output);
+    }
+
+    #[test]
+    fn truncated() {
+        let width: usize = 0;
+        let source: &[DummyStruct] = &[DummyStruct { a: 2, b: 3 }];
+        let output = source.pad(width, Alignment::Left, DummyStruct { a: 13, b: 98 });
+        let expected: Vec<DummyStruct> = Vec::with_capacity(0);
+        assert_eq!(expected, output);
+        assert_eq!(expected.capacity(), output.capacity());
+        assert_eq!(expected.len(), output.len());
+    }
+
+    #[test]
+    fn pad_same_width() {
+        let width: usize = 1;
+        let source: &[DummyStruct] = &[DummyStruct { a: 2, b: 3 }];
+        let output = source.pad(width, Alignment::Left, DummyStruct { a: 13, b: 98 });
+        let expected: Vec<DummyStruct> = Vec::from(&[DummyStruct { a: 2, b: 3 }]);
+        assert_eq!(expected, output);
+        assert_eq!(expected.capacity(), output.capacity());
+        assert_eq!(expected.len(), output.len());
+    }
+
+    #[test]
+    fn pad_to_buffer_truncated_left() {
+        let width = 1;
+        let source: &[char] = &['a', 'b', 'c'];
+        let mut buffer: Vec<char> = Vec::with_capacity(width);
+        source.pad_to_buffer(width, Alignment::Left, ' ', &mut buffer);
+        let expected = Vec::from(&['a']);
+        assert_eq!(expected, buffer);
+        assert_eq!(expected.capacity(), buffer.capacity());
+        assert_eq!(expected.len(), buffer.len());
+    }
+
+    #[test]
+    fn pad_to_buffer_truncated_right() {
+        let width = 1;
+        let source: &[char] = &['a', 'b', 'c'];
+        let mut buffer: Vec<char> = Vec::with_capacity(width);
+        source.pad_to_buffer(width, Alignment::Right, ' ', &mut buffer);
+        let expected = Vec::from(&['c']);
+        assert_eq!(expected, buffer);
+        assert_eq!(expected.capacity(), buffer.capacity());
+        assert_eq!(expected.len(), buffer.len());
+    }
+
+    #[test]
+    fn pad_to_buffer_truncated_center() {
+        let width = 1;
+        let source: &[char] = &['a', 'b', 'c'];
+        let mut buffer: Vec<char> = Vec::with_capacity(width);
+        source.pad_to_buffer(width, Alignment::Center, ' ', &mut buffer);
+        let expected = Vec::from(&['b']);
+        assert_eq!(expected, buffer);
+        assert_eq!(expected.capacity(), buffer.capacity());
+        assert_eq!(expected.len(), buffer.len());
+    }
+
+    #[test]
+    fn pad_to_buffer_same_width() {
+        let width = 3;
+        let source: &[char] = &['a', 'b', 'c'];
+        let mut buffer: Vec<char> = Vec::with_capacity(width);
+        source.pad_to_buffer(width, Alignment::Center, ' ', &mut buffer);
+        let expected = Vec::from(&['a', 'b', 'c']);
+        assert_eq!(expected, buffer);
+        assert_eq!(expected.capacity(), buffer.capacity());
+        assert_eq!(expected.len(), buffer.len());
     }
 }
