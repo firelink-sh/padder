@@ -1,7 +1,39 @@
 //!
-//! Highly efficient data formatting and padding crate for Rust.
+//! A highly efficient Rust crate for padding data during runtime.
 //!
-//! ...
+//! padder is a lightweight Rust crate for padding and formatting data structures at runtime
+//! efficiently. It provides fine-grained control over alignment, truncating strategies, padding,
+//! and memory allocation - making it ideal for performance-critical applications.
+//!
+//! Unlike the builtin `format!` macro, padder avoids unneccessary repeated heap allocations and
+//! lets you pad and format directly into preallocated buffers, or modify buffers in-place.
+//!
+//! **Fully UTF-8 compatible** - padder works seamlessly with any Unicode characters like emojis (🐉),
+//! Japanese kana/kanji (こんにちは), or other multibyte symbols, when operating on String types.
+//!
+//! # Features
+//! - Pad strings, slices, and vectors with custom alignment and width.
+//! - Zero-cost abstractions via the `Source` and `MutableSource` traits.
+//! - Pad directly into buffers for fine-grained heap allocation control.
+//! - Highly extensible to custom types through the provided traits.
+//!
+//! # Usage
+//! ```
+//! use padder::*;
+//!
+//! let mut string = String::from("kratos");
+//! (&mut string).pad(10, Alignment::Right, '$');  // "$$$$kratos"
+//! pad_mut(&mut string, 14, Alignment::Center, '-');  // "--$$$$kratos--"
+//!
+//! let s = "dragon";
+//! let padded = pad(s, 11, Alignment::Left, '🐉');
+//! assert_eq!("dragon🐉🐉🐉🐉🐉", padded);
+//!
+//! let vec: Vec<u8> = Vec::from(&[0u8, 2, 5]);
+//! let mut buffer: Vec<u8> = Vec::with_capacity(5);
+//! pad_to_buffer(vec, 5, Alignment::Right, 128u8, &mut buffer);
+//! assert_eq!(Vec::from(&[128u8, 128, 0, 2, 5]), buffer);
+//! ```
 //!
 
 mod alignment;
@@ -46,7 +78,6 @@ pub fn pad<S: Source>(source: S, width: usize, mode: Alignment, symbol: S::Symbo
 /// ```
 /// use padder::*;
 ///
-///
 /// let mut string = String::from("elden ring");
 /// pad_mut(&mut string, 14, Alignment::Left, '💍');
 /// assert_eq!("elden ring💍💍💍💍", string);
@@ -55,11 +86,39 @@ pub fn pad<S: Source>(source: S, width: usize, mode: Alignment, symbol: S::Symbo
 /// pad_mut(&mut string, 14, Alignment::Center, '🌑');
 /// assert_eq!("🌑🌑dark souls🌑🌑", string);
 /// ```
-pub fn pad_mut<S: MutableSource>(source: &mut S, width: usize, mode: Alignment, symbol: S::Symbol) {
+pub fn pad_mut<S: MutableSource>(mut source: S, width: usize, mode: Alignment, symbol: S::Symbol) {
     source.pad(width, mode, symbol);
 }
 
+/// Pad the given source to match the specified `width` according to the specified alignment
+/// `mode` by writing into the provided `buffer`.
 ///
+/// This is a convenience wrapper around the [`Source::pad_to_buffer`] method. It does not modify
+/// the source buffer and instead directly writes in the the `buffer`.
+///
+/// # Examples
+/// ```
+/// use padder::*;
+///
+/// let slice: &[&str] = &[
+///     "liurnia",
+///     "of",
+///     "the",
+///     "lakes",
+/// ];
+/// let width = 6;
+/// let mut buf: Vec<&str> = Vec::with_capacity(width);
+/// pad_to_buffer(slice, width, Alignment::Right, "tarnished", &mut buf);
+/// let expected: Vec<&str> = Vec::from(&[
+///     "tarnished",
+///     "tarnished",
+///     "liurnia",
+///     "of",
+///     "the",
+///     "lakes",
+/// ]);
+/// assert_eq!(expected, buf);
+/// ```
 pub fn pad_to_buffer<S: Source>(
     source: S,
     width: usize,
