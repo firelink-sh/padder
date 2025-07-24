@@ -1,3 +1,4 @@
+#![allow(clippy::needless_doctest_main)]
 use crate::alignment::Alignment;
 
 /// A trait representing a width-aware, read-only data buffer that can be padded (and truncated).
