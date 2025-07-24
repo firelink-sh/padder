@@ -8,7 +8,7 @@ use crate::alignment::Alignment;
 /// This is useful for formatting structures like [`String`], [`std::str`], [`Vec`], and [`std::slice`] for display or layout.
 ///
 /// # Associated Types
-/// - `Symbol`: the element used for padding (e.g., `char`, `u8`, or anything that implements [`Copy`]).
+/// - `Symbol`: the element used for padding (e.g., `char`, `u8`, or anything that implements [`Clone`], [`Copy`], and [`Debug`]).
 /// - `Buffer`: a mutable buffer type that is used when calling [`pad_to_buffer`].
 /// - `Output`: the owned result of the padding operations.
 /// - `Slice<'a>`: a borrowed view into the possibly truncated buffer.
@@ -100,8 +100,9 @@ impl Source for &str {
     /// See [`truncate_symbols`] for details on how truncating is performed.
     ///
     /// If the &str is longer than `width` (in utf8 chars), it will be truncated.
+    ///
     /// If the &str is shorter than `width`, it will be padded using the `symbol`.
-    /// - Padding is distributed based on alignment: left, right, or center (extra symbol is added to the right if the number of chars to pad is and odd).
+    /// Padding is distributed based on alignment: left, right, or center (extra symbol is added to the right if the number of chars to pad is odd).
     ///
     /// # Examples
     /// ```
@@ -142,7 +143,35 @@ impl Source for &str {
         output
     }
 
+    /// Pads or truncates the &str in-place to match the specified `width` according to the
+    /// specified alignment `mode` by writing into the provided `buffer`.
     ///
+    /// See [`truncate_symbols`] for details on how truncating is performed.
+    ///
+    /// If the &str is longer than `width` (in utf8 chars), it will be truncated.
+    ///
+    /// If the &str is shorter than `width`, it will be padded using the `symbol`.
+    /// Padding is distributed based on alignment: left, right, or center (extra symbol is added to the right if the number of chars to pad is odd).
+    ///
+    /// If the buffer has not preallocated enough space on the heap for the padding to fit, then
+    /// this method will allocate the amount that is required to fit the new string.
+    ///
+    /// # Examples
+    /// ```
+    /// use padder::*;
+    ///
+    /// let width = 12;
+    /// let symbol = '🌊';
+    /// let s: &str = "caribbean";
+    /// // here we allocate just enough memory on the heap that is required
+    /// let mut buf = String::with_capacity(s.len() + 3 * symbol.len_utf8());
+    /// s.pad_to_buffer(width, Alignment::Left, symbol, &mut buf);
+    ///
+    /// assert_eq!("caribbean🌊🌊🌊", buf);
+    /// assert_eq!(21, buf.capacity());
+    /// assert_eq!(21, buf.len());
+    /// ```
+    /// [`truncate_symbols`]: Self::truncate_symbols
     fn pad_to_buffer(
         &self,
         width: usize,
@@ -181,7 +210,11 @@ impl Source for String {
     type Output = Self;
     type Slice<'a> = &'a str;
 
-    ///
+    /// Truncates the string to match the specified `width` according to the specified alignment
+    /// `mode`.
+    /// - [`Alignment::Left`]: truncates from the right.
+    /// - [`Alignment::Right`]: truncates from the left.
+    /// - [`Alignment::Center`]: truncates equally from both ends (extra char is removed from the left if the number of chars to truncate is odd).
     fn truncate_symbols<'a>(&'a self, width: usize, mode: Alignment) -> Self::Slice<'a> {
         let mut st_byte: usize = 0;
         let mut ed_byte: usize = self.len();
@@ -222,7 +255,26 @@ impl Source for String {
         &self[st_byte..ed_byte]
     }
 
+    /// Pads or truncates the string to match the specified `width` according to the specified alignment `mode`.
     ///
+    /// See [`truncate_symbols`] for details on how truncating is performed.
+    ///
+    /// If the string is longer than `width` (in utf8 chars), it will be truncated.
+    ///
+    /// If the string is shorter than `width`, it will be padded using the `symbol`.
+    /// Padding is distributed based on alignment: left, right, or center (extra symbol is added to the right if the number of chars to pad is and odd).
+    ///
+    /// # Examples
+    /// ```
+    /// use padder::*;
+    ///
+    /// let s = String::from("hobbit");
+    /// let o = s.pad(10, Alignment::Right, '風');
+    /// assert_eq!("風風風風hobbit", o);
+    /// assert_eq!(18, o.capacity());  // '風' is 3 bytes
+    /// assert_eq!(18, o.len());
+    /// ```
+    /// [`truncate_symbols`]: Self::truncate_symbols
     fn pad(&self, width: usize, mode: Alignment, symbol: Self::Symbol) -> Self::Output {
         let n_chars_original: usize = self.chars().count();
         if width < n_chars_original {
@@ -247,7 +299,35 @@ impl Source for String {
         output
     }
 
+    /// Pads or truncates the string in-place to match the specified `width` according to the
+    /// specified alignment `mode` by writing into the provided `buffer`.
     ///
+    /// See [`truncate_symbols`] for details on how truncating is performed.
+    ///
+    /// If the string is longer than `width` (in utf8 chars), it will be truncated.
+    ///
+    /// If the string is shorter than `width`, it will be padded using the `symbol`.
+    /// Padding is distributed based on alignment: left, right, or center (extra symbol is added to the right if the number of chars to pad is odd).
+    ///
+    /// If the buffer has not preallocated enough space on the heap for the padding to fit, then
+    /// this method will allocate the amount that is required to fit the new string.
+    ///
+    /// # Examples
+    /// ```
+    /// use padder::*;
+    ///
+    /// let width = 4;
+    /// let symbol = '🚗';
+    /// let s = String::from("f1");
+    /// // here we allocate just enough memory on the heap that is required
+    /// let mut buf = String::with_capacity(s.len() + 2 * symbol.len_utf8());
+    /// s.pad_to_buffer(width, Alignment::Center, symbol, &mut buf);
+    ///
+    /// assert_eq!("🚗f1🚗", buf);
+    /// assert_eq!(10, buf.capacity());
+    /// assert_eq!(10, buf.len());
+    /// ```
+    /// [`truncate_symbols`]: Self::truncate_symbols
     fn pad_to_buffer(
         &self,
         width: usize,
@@ -282,7 +362,7 @@ impl Source for String {
 
 impl<T> Source for Vec<T>
 where
-    T: Copy + Sized,
+    T: Clone + Copy + Sized,
 {
     type Symbol = T;
     type Buffer = Vec<T>;
@@ -292,7 +372,10 @@ where
     where
         T: 'a;
 
-    ///
+    /// Truncates the vector to match the specified `width` according to the specified alignment `mode`.
+    /// - [`Alignment::Left`]: truncates from the right.
+    /// - [`Alignment::Right`]: truncates from the left.
+    /// - [`Alignment::Center`]: truncates equally from both ends (extra item is removed from the left if the number of items to truncate is odd).
     fn truncate_symbols<'a>(&'a self, width: usize, mode: Alignment) -> Self::Slice<'a> {
         match mode {
             Alignment::Left => &self[..width],
@@ -305,7 +388,26 @@ where
         }
     }
 
+    /// Pads or truncates the vector to match the specified `width` according to the specified alignment `mode`.
     ///
+    /// See [`truncate_symbols`] for details on how truncating is performed.
+    ///
+    /// If the vector is longer than `width` (in number of items), it will be truncated.
+    ///
+    /// If the vector is shorter than `width`, it will be padded using the `symbol`.
+    /// Padding is distributed based on alignment: left, right, or center (extra symbol is added to the right if the number of items to pad is odd).
+    ///
+    /// # Examples
+    /// ```
+    /// use padder::*;
+    ///
+    /// let v: Vec<&str> = Vec::from(&["scooby", "doo"]);
+    /// let o = v.pad(5, Alignment::Left, "!!");
+    /// assert_eq!(Vec::from(&["scooby", "doo", "!!", "!!", "!!"]), o);
+    /// assert_eq!(5, o.capacity());
+    /// assert_eq!(5, o.len());
+    /// ```
+    /// [`truncate_symbols`]: Self::truncate_symbols
     fn pad(&self, width: usize, mode: Alignment, symbol: Self::Symbol) -> Self::Output {
         if width < self.len() {
             return self.truncate_symbols(width, mode).to_vec();
@@ -322,10 +424,58 @@ where
         let mut output: Vec<T> = std::iter::repeat_n(symbol, pads.left()).collect::<Vec<T>>();
         output.extend_from_slice(self);
         output.extend_from_slice(&std::iter::repeat_n(symbol, pads.right()).collect::<Vec<T>>());
+        output.shrink_to_fit();
         output
     }
 
+    /// Pads or truncates the vector in-place to match the specified `width` according to the
+    /// specified alignment `mode` by writing into the provided `buffer`.
     ///
+    /// See [`truncate_symbols`] for details on how truncating is performed.
+    ///
+    /// If the vector is longer than `width` (in number of items), it will be truncated.
+    ///
+    /// If the vector is shorter than `width`, it will be padded using the `symbol`.
+    /// Padding is distributed based on alignment: left, right, or center (extra symbol is added to the right if the number of items to pad is odd).
+    ///
+    /// If the buffer has not preallocated enough space on the heap for the padding to fit, then
+    /// this method will allocate the amount that is required to fit the new vector.
+    ///
+    /// # Examples
+    /// ```
+    /// use padder::*;
+    ///
+    /// #[derive(Clone, Copy, Debug, PartialEq)]
+    /// struct MyStruct {
+    ///     a: usize,
+    ///     b: char,
+    /// }
+    ///
+    /// fn main() {
+    ///     let width = 4;
+    ///     let symbol = MyStruct { a: 2, b: 'c' };
+    ///     let v: Vec<MyStruct> = Vec::from(&[
+    ///         MyStruct { a: 0, b: 'a' },
+    ///         MyStruct { a: 1, b: 'b' },
+    ///         MyStruct { a: 3, b: 'd' },
+    ///     ]);
+    ///     // here we allocate just enough memory on the heap that is required
+    ///     let mut buf = Vec::with_capacity(width);
+    ///     v.pad_to_buffer(width, Alignment::Center, symbol, &mut buf);
+    ///
+    ///     let expected: Vec<MyStruct> = Vec::from(&[
+    ///         MyStruct { a: 0, b: 'a' },
+    ///         MyStruct { a: 1, b: 'b' },
+    ///         MyStruct { a: 3, b: 'd' },
+    ///         MyStruct { a: 2, b: 'c' },
+    ///     ]);
+    ///
+    ///     assert_eq!(expected, buf);
+    ///     assert_eq!(expected.capacity(), buf.capacity());
+    ///     assert_eq!(expected.len(), buf.len());
+    /// }
+    /// ```
+    /// [`truncate_symbols`]: Self::truncate_symbols
     fn pad_to_buffer(
         &self,
         width: usize,
@@ -354,12 +504,13 @@ where
         buffer.extend_from_slice(&std::iter::repeat_n(symbol, pads.left()).collect::<Vec<T>>());
         buffer.extend_from_slice(self);
         buffer.extend_from_slice(&std::iter::repeat_n(symbol, pads.right()).collect::<Vec<T>>());
+        buffer.shrink_to_fit();
     }
 }
 
 impl<T> Source for &[T]
 where
-    T: Copy + Sized,
+    T: Clone + Copy + Sized,
 {
     type Symbol = T;
     type Buffer = Vec<T>;
@@ -369,7 +520,10 @@ where
     where
         T: 'a;
 
-    ///
+    /// Truncates the slice to match the specified `width` according to the specified alignment `mode`.
+    /// - [`Alignment::Left`]: truncates from the right.
+    /// - [`Alignment::Right`]: truncates from the left.
+    /// - [`Alignment::Center`]: truncates equally from both ends (extra item is removed from the left if the number of items to truncate is odd).
     fn truncate_symbols<'a>(&'a self, width: usize, mode: Alignment) -> Self::Slice<'a> {
         match mode {
             Alignment::Left => &self[..width],
@@ -382,6 +536,26 @@ where
         }
     }
 
+    /// Pads or truncates the slice to match the specified `width` according to the specified alignment `mode`.
+    ///
+    /// See [`truncate_symbols`] for details on how truncating is performed.
+    ///
+    /// If the slice is longer than `width` (in number of items), it will be truncated.
+    ///
+    /// If the slice is shorter than `width`, it will be padded using the `symbol`.
+    /// Padding is distributed based on alignment: left, right, or center (extra symbol is added to the right if the number of items to pad is odd).
+    ///
+    /// # Examples
+    /// ```
+    /// use padder::*;
+    ///
+    /// let s: &[i32] = &[1, 2, 3, 4];
+    /// let o = s.pad(9, Alignment::Left, 1337i32);
+    /// assert_eq!(Vec::from(&[1, 2, 3, 4, 1337, 1337, 1337, 1337, 1337]), o);
+    /// assert_eq!(9, o.capacity());
+    /// assert_eq!(9, o.len());
+    /// ```
+    /// [`truncate_symbols`]: Self::truncate_symbols
     fn pad(&self, width: usize, mode: Alignment, symbol: Self::Symbol) -> Self::Output {
         if width < self.len() {
             return self.truncate_symbols(width, mode).to_vec();
@@ -401,7 +575,30 @@ where
         output
     }
 
+    /// Pads or truncates the slice in-place to match the specified `width` according to the
+    /// specified alignment `mode` by writing into the provided `buffer`.
     ///
+    /// See [`truncate_symbols`] for details on how truncating is performed.
+    ///
+    /// If the slice is longer than `width` (in number of items), it will be truncated.
+    ///
+    /// If the slice is shorter than `width`, it will be padded using the `symbol`.
+    /// Padding is distributed based on alignment: left, right, or center (extra symbol is added to the right if the number of items to pad is odd).
+    ///
+    /// If the buffer has not preallocated enough space on the heap for the padding to fit, then
+    /// this method will allocate the amount that is required to fit the new vector.
+    ///
+    /// # Examples
+    /// ```
+    /// use padder::*;
+    ///
+    /// let s: &[u8] = &[0, 1, 2, 4, 8];
+    /// let o = s.pad(7, Alignment::Left, 255u8);
+    /// assert_eq!(Vec::from(&[0u8, 1, 2, 4, 8, 255, 255]), o);
+    /// assert_eq!(7, o.capacity());
+    /// assert_eq!(7, o.len());
+    /// ```
+    /// [`truncate_symbols`]: Self::truncate_symbols
     fn pad_to_buffer(
         &self,
         width: usize,
