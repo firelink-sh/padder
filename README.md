@@ -17,7 +17,7 @@ padder is a lightweight Rust crate for padding and formatting data structures at
 Unlike the builtin `format!` macro, padder avoids unnecessary repeated heap allocations and lets you
 pad and format directly into preallocated buffers.
 
-**Fully UTF-8 compatible** - padder works seamlessly with any Unicode characters like emojis (🐉), Japanese kana/kanji (こんにちは), or other multibyte symbols, when operating on String types.
+**Fully UTF-8 compatible** - padder works seamlessly with any Unicode characters like emojis (🐉), Japanese kana/kanji (こんにちは), or other multibyte symbols when operating on String types.
 
 ## Features
 
@@ -37,6 +37,58 @@ cargo add padder
 (available features)
  - enable_unsafe
 ```
+
+
+## Usage
+
+### Immutable padding
+
+```rust
+use padder::*;
+
+// Padding an immutable string slice.
+let s: &str = "radagon";
+let padded: String = s.pad(11, Alignment::Left, '🐉');
+assert_eq!("radagon🐉🐉🐉🐉", padded);
+
+// Padding an immutable vector into a preallocted buffer.
+let width: usize = 10;
+let vec: Vec<u8> = Vec::from(&[0u8, 1, 2, 3, 4]);
+let mut buf: Vec<u8> = Vec::with_capacity(width);
+vec.pad_to_buf(width, Alignment::Right, 0u8, &mut buf);
+assert_eq!(
+    Vec::from(&[0u8, 0, 0, 0, 0, 0, 1, 2, 3, 4]),
+     buf,
+);
+```
+
+
+### In-place padding
+
+```rust
+user padder::*;
+
+// Padding a mutable string in-place.
+let mut ms = String::from("yharnam");
+(&mut ms).pad(10, Alignment::Center, '👽');
+assert_eq!("👽yharnam👽👽", ms);
+
+// We can pad again! This time using the wrapper function `pad_mut`.
+pad_mut(&mut ms, 13, Alignment::Right, '!');
+assert_eq!("!!!👽yharnam👽👽", ms);
+
+// And now we can truncate the string -
+// (the symbol has no effect when truncating).
+(&mut ms).pad(2, Alignment::Left, ' ');
+assert_eq!("!!", ms);
+```
+
+
+## Examples
+
+Take a look in [examples/](./examples) to see some short examples of how to use this crate.
+
+To test out any of the examples you can run `cargo run -p <example-name>`.
 
 
 ## Benchmarks
