@@ -48,7 +48,8 @@ impl Source for &str {
     type Symbol = char;
     type Buffer = String;
     type Output = String;
-    type Slice<'a> = Self
+    type Slice<'a>
+        = Self
     where
         Self: 'a;
 
@@ -202,7 +203,8 @@ impl Source for String {
     type Symbol = char;
     type Buffer = Self;
     type Output = Self;
-    type Slice<'a> = &'a str
+    type Slice<'a>
+        = &'a str
     where
         Self: 'a;
 
