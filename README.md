@@ -1,8 +1,9 @@
 <div align="center">
 
 # padder
-##### Highly efficient runtime data formatting and padding crate for Rust.
+##### A highly efficient Rust crate for padding data during runtime.
 
+[![MSRV](https://img.shields.io/badge/MSRV-1.85.1-orange)](https://crates.io/crates/padder)
 [![CI](https://github.com/firelink-sh/padder/actions/workflows/ci.yml/badge.svg)](https://github.com/firelink-sh/padder/actions/workflows/ci.yml)
 [![Tests](https://github.com/firelink-sh/padder/actions/workflows/tests.yml/badge.svg)](https://github.com/firelink-sh/padder/actions/workflows/tests.yml)
 [![codecov](https://codecov.io/gh/firelink-sh/padder/graph/badge.svg?token=OTFIM6UICZ)](https://codecov.io/gh/firelink-sh/padder)

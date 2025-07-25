@@ -1,0 +1,8 @@
+[package]
+name = "vec"
+description = "Short example of padding a vec."
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+padder = { path = "../../", version = "2.0.0" }

@@ -1,13 +1,19 @@
+[workspace]
+members = [
+    "examples/*",
+]
+resolver = "3"
+
 [package]
 name = "padder"
 version = "2.0.0"
 edition = "2024"
-description = "Highly efficient data formatting and padding crate for Rust."
+description = "A highly efficient Rust crate for padding data during runtime."
 authors = [
     "Wilhelm Ågren <wilhelm@firelink.sh>",
 ]
 readme = "README.md"
-license = "MIT OR APACHE"
+license = "APACHE OR MIT"
 homepage = "https://github.com/firelink-sh/padder"
 repository = "https://github.com/firelink-sh/padder"
 

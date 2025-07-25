@@ -1,0 +1,9 @@
+[package]
+name = "mut_string_unsafe"
+description = "Short example of padding a string in-place with unsafe optimizations."
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+padder = { path = "../../", version = "2.0.0", features = [ "enable_unsafe" ] }
