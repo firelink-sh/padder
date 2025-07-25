@@ -1,0 +1,9 @@
+[package]
+name = "string"
+description = "Short example of padding a string."
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+padder = { path = "../../", version = "2.0.0" }

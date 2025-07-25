@@ -226,6 +226,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32a282da65faaf38286cf3be983213fcf1d2e2a58700e808f83f4ea9a4804bc0"
 
 [[package]]
+name = "mut_string_unsafe"
+version = "0.1.0"
+dependencies = [
+ "padder",
+]
+
+[[package]]
+name = "mut_vec"
+version = "0.1.0"
+dependencies = [
+ "padder",
+]
+
+[[package]]
 name = "num-traits"
 version = "0.2.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -402,6 +416,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "string"
+version = "0.1.0"
+dependencies = [
+ "padder",
+]
+
+[[package]]
 name = "syn"
 version = "2.0.104"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -427,6 +448,13 @@ name = "unicode-ident"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5a5f39404a5da50712a4c1eecf25e90dd62b613502b7e925fd4e4d19b5c96512"
+
+[[package]]
+name = "vec"
+version = "0.1.0"
+dependencies = [
+ "padder",
+]
 
 [[package]]
 name = "walkdir"
