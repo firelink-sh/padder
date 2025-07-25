@@ -48,7 +48,9 @@ impl Source for &str {
     type Symbol = char;
     type Buffer = String;
     type Output = String;
-    type Slice<'a> = Self;
+    type Slice<'a> = Self
+    where
+        Self: 'a;
 
     /// Truncates the &str to match the specified `width` according to the specified alignment
     /// `mode`.
@@ -98,8 +100,6 @@ impl Source for &str {
     /// Pads or truncates the &str to match the specified `width` according to the specified
     /// alignment `mode`.
     ///
-    /// See [`truncate_to_fit`] for details on how truncating is performed.
-    ///
     /// If the &str is longer than `width` (in utf8 chars), it will be truncated.
     ///
     /// If the &str is shorter than `width`, it will be padded using the `symbol`.
@@ -121,7 +121,6 @@ impl Source for &str {
     /// assert_eq!(18, o2.capacity());  // these utf8 chars use more bytes :)
     /// assert_eq!(18, o2.len());
     /// ```
-    /// [`truncate_to_fit`]: Self::truncate_to_fit
     fn pad(&self, width: usize, mode: Alignment, symbol: Self::Symbol) -> Self::Output {
         let n_chars_original: usize = self.chars().count();
         if width < n_chars_original {
@@ -146,8 +145,6 @@ impl Source for &str {
 
     /// Pads or truncates the &str in-place to match the specified `width` according to the
     /// specified alignment `mode` by writing into the provided `buffer`.
-    ///
-    /// See [`truncate_to_fit`] for details on how truncating is performed.
     ///
     /// If the &str is longer than `width` (in utf8 chars), it will be truncated.
     ///
@@ -175,7 +172,6 @@ impl Source for &str {
     /// assert_eq!(21, buf.capacity());
     /// assert_eq!(21, buf.len());
     /// ```
-    /// [`truncate_to_fit`]: Self::truncate_to_fit
     fn pad_to_buffer(
         &self,
         width: usize,
@@ -206,7 +202,9 @@ impl Source for String {
     type Symbol = char;
     type Buffer = Self;
     type Output = Self;
-    type Slice<'a> = &'a str;
+    type Slice<'a> = &'a str
+    where
+        Self: 'a;
 
     /// Truncates the string to match the specified `width` according to the specified alignment
     /// `mode`.
@@ -255,8 +253,6 @@ impl Source for String {
 
     /// Pads or truncates the string to match the specified `width` according to the specified alignment `mode`.
     ///
-    /// See [`truncate_to_fit`] for details on how truncating is performed.
-    ///
     /// If the string is longer than `width` (in utf8 chars), it will be truncated.
     ///
     /// If the string is shorter than `width`, it will be padded using the `symbol`.
@@ -272,7 +268,6 @@ impl Source for String {
     /// assert_eq!(18, o.capacity());  // '風' is 3 bytes
     /// assert_eq!(18, o.len());
     /// ```
-    /// [`truncate_to_fit`]: Self::truncate_to_fit
     fn pad(&self, width: usize, mode: Alignment, symbol: Self::Symbol) -> Self::Output {
         let n_chars_original: usize = self.chars().count();
         if width < n_chars_original {
@@ -300,8 +295,6 @@ impl Source for String {
     /// Pads or truncates the string in-place to match the specified `width` according to the
     /// specified alignment `mode` by writing into the provided `buffer`.
     ///
-    /// See [`truncate_to_fit`] for details on how truncating is performed.
-    ///
     /// If the string is longer than `width` (in utf8 chars), it will be truncated.
     ///
     /// If the string is shorter than `width`, it will be padded using the `symbol`.
@@ -328,7 +321,6 @@ impl Source for String {
     /// assert_eq!(10, buf.capacity());
     /// assert_eq!(10, buf.len());
     /// ```
-    /// [`truncate_to_fit`]: Self::truncate_to_fit
     fn pad_to_buffer(
         &self,
         width: usize,
@@ -365,7 +357,7 @@ where
     type Slice<'a>
         = &'a [T]
     where
-        T: 'a;
+        Self: 'a;
 
     /// Truncates the vector to match the specified `width` according to the specified alignment `mode`.
     /// - [`Alignment::Left`]: truncates from the right.
@@ -385,8 +377,6 @@ where
 
     /// Pads or truncates the vector to match the specified `width` according to the specified alignment `mode`.
     ///
-    /// See [`truncate_to_fit`] for details on how truncating is performed.
-    ///
     /// If the vector is longer than `width` (in number of items), it will be truncated.
     ///
     /// If the vector is shorter than `width`, it will be padded using the `symbol`.
@@ -402,7 +392,6 @@ where
     /// assert_eq!(5, o.capacity());
     /// assert_eq!(5, o.len());
     /// ```
-    /// [`truncate_to_fit`]: Self::truncate_to_fit
     fn pad(&self, width: usize, mode: Alignment, symbol: Self::Symbol) -> Self::Output {
         if width < self.len() {
             return self.truncate_to_fit(width, mode).to_vec();
@@ -425,8 +414,6 @@ where
 
     /// Pads or truncates the vector in-place to match the specified `width` according to the
     /// specified alignment `mode` by writing into the provided `buffer`.
-    ///
-    /// See [`truncate_to_fit`] for details on how truncating is performed.
     ///
     /// If the vector is longer than `width` (in number of items), it will be truncated.
     ///
@@ -473,7 +460,6 @@ where
     ///     assert_eq!(expected.len(), buf.len());
     /// }
     /// ```
-    /// [`truncate_to_fit`]: Self::truncate_to_fit
     fn pad_to_buffer(
         &self,
         width: usize,
@@ -510,7 +496,7 @@ where
     type Slice<'a>
         = &'a [T]
     where
-        T: 'a;
+        Self: 'a;
 
     /// Truncates the slice to match the specified `width` according to the specified alignment `mode`.
     /// - [`Alignment::Left`]: truncates from the right.
@@ -530,8 +516,6 @@ where
 
     /// Pads or truncates the slice to match the specified `width` according to the specified alignment `mode`.
     ///
-    /// See [`truncate_to_fit`] for details on how truncating is performed.
-    ///
     /// If the slice is longer than `width` (in number of items), it will be truncated.
     ///
     /// If the slice is shorter than `width`, it will be padded using the `symbol`.
@@ -547,7 +531,6 @@ where
     /// assert_eq!(9, o.capacity());
     /// assert_eq!(9, o.len());
     /// ```
-    /// [`truncate_to_fit`]: Self::truncate_to_fit
     fn pad(&self, width: usize, mode: Alignment, symbol: Self::Symbol) -> Self::Output {
         if width < self.len() {
             return self.truncate_to_fit(width, mode).to_vec();
@@ -570,8 +553,6 @@ where
     /// Pads or truncates the slice in-place to match the specified `width` according to the
     /// specified alignment `mode` by writing into the provided `buffer`.
     ///
-    /// See [`truncate_to_fit`] for details on how truncating is performed.
-    ///
     /// If the slice is longer than `width` (in number of items), it will be truncated.
     ///
     /// If the slice is shorter than `width`, it will be padded using the `symbol`.
@@ -593,7 +574,6 @@ where
     /// assert_eq!(7, o.capacity());
     /// assert_eq!(7, o.len());
     /// ```
-    /// [`truncate_to_fit`]: Self::truncate_to_fit
     fn pad_to_buffer(
         &self,
         width: usize,
