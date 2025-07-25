@@ -66,7 +66,7 @@ assert_eq!(
 ### In-place padding
 
 ```rust
-user padder::*;
+use padder::*;
 
 // Padding a mutable string in-place.
 let mut ms = String::from("yharnam");
