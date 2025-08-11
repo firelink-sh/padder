@@ -49,4 +49,4 @@ required-features = [ "enable_unsafe" ]
 bench = false
 
 [dev-dependencies]
-criterion = "0.6.0"
+criterion = "0.7.0"
