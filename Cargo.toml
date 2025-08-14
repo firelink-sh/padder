@@ -6,7 +6,7 @@ resolver = "3"
 
 [package]
 name = "padder"
-version = "2.0.1"
+version = "2.1.0"
 edition = "2024"
 description = "A highly efficient Rust crate for padding data during runtime."
 authors = [
