@@ -113,13 +113,11 @@ impl Source for &str {
     /// let s1 = "yabadoo";
     /// let o1 = s1.pad(10, Alignment::Right, '9');
     /// assert_eq!("999yabadoo", o1);
-    /// assert_eq!(10, o1.capacity());  // all of these chars are just 1 byte
     /// assert_eq!(10, o1.len());
     ///
     /// let s2 = "øĸœ";
     /// let o2 = s2.pad(6, Alignment::Center, '🦔');
     /// assert_eq!("🦔øĸœ🦔🦔", o2);
-    /// assert_eq!(18, o2.capacity());  // these utf8 chars use more bytes :)
     /// assert_eq!(18, o2.len());
     /// ```
     fn pad(&self, width: usize, mode: Alignment, symbol: Self::Symbol) -> Self::Output {
@@ -170,7 +168,6 @@ impl Source for &str {
     /// s.pad_to_buffer(width, Alignment::Left, symbol, &mut buf);
     ///
     /// assert_eq!("caribbean🌊🌊🌊", buf);
-    /// assert_eq!(21, buf.capacity());
     /// assert_eq!(21, buf.len());
     /// ```
     fn pad_to_buffer(
@@ -267,7 +264,6 @@ impl Source for String {
     /// let s = String::from("hobbit");
     /// let o = s.pad(10, Alignment::Right, '風');
     /// assert_eq!("風風風風hobbit", o);
-    /// assert_eq!(18, o.capacity());  // '風' is 3 bytes
     /// assert_eq!(18, o.len());
     /// ```
     fn pad(&self, width: usize, mode: Alignment, symbol: Self::Symbol) -> Self::Output {
@@ -320,7 +316,6 @@ impl Source for String {
     /// s.pad_to_buffer(width, Alignment::Center, symbol, &mut buf);
     ///
     /// assert_eq!("🚗f1🚗", buf);
-    /// assert_eq!(10, buf.capacity());
     /// assert_eq!(10, buf.len());
     /// ```
     fn pad_to_buffer(
@@ -391,7 +386,6 @@ where
     /// let v: Vec<&str> = Vec::from(&["scooby", "doo"]);
     /// let o = v.pad(5, Alignment::Left, "!!");
     /// assert_eq!(Vec::from(&["scooby", "doo", "!!", "!!", "!!"]), o);
-    /// assert_eq!(5, o.capacity());
     /// assert_eq!(5, o.len());
     /// ```
     fn pad(&self, width: usize, mode: Alignment, symbol: Self::Symbol) -> Self::Output {
@@ -409,8 +403,7 @@ where
         let pads = mode.pads(n_items_diff);
         let mut output: Vec<T> = std::iter::repeat_n(symbol, pads.left()).collect::<Vec<T>>();
         output.extend_from_slice(self);
-        output.extend_from_slice(&std::iter::repeat_n(symbol, pads.right()).collect::<Vec<T>>());
-        output.shrink_to_fit();
+        output.resize(width, symbol);
         output
     }
 
@@ -458,7 +451,6 @@ where
     ///     ]);
     ///
     ///     assert_eq!(expected, buf);
-    ///     assert_eq!(expected.capacity(), buf.capacity());
     ///     assert_eq!(expected.len(), buf.len());
     /// }
     /// ```
@@ -483,8 +475,7 @@ where
         let pads = mode.pads(n_items_diff);
         buffer.extend_from_slice(&std::iter::repeat_n(symbol, pads.left()).collect::<Vec<T>>());
         buffer.extend_from_slice(self);
-        buffer.extend_from_slice(&std::iter::repeat_n(symbol, pads.right()).collect::<Vec<T>>());
-        buffer.shrink_to_fit();
+        buffer.resize(width, symbol);
     }
 }
 
@@ -530,7 +521,6 @@ where
     /// let s: &[i32] = &[1, 2, 3, 4];
     /// let o = s.pad(9, Alignment::Left, 1337i32);
     /// assert_eq!(Vec::from(&[1, 2, 3, 4, 1337, 1337, 1337, 1337, 1337]), o);
-    /// assert_eq!(9, o.capacity());
     /// assert_eq!(9, o.len());
     /// ```
     fn pad(&self, width: usize, mode: Alignment, symbol: Self::Symbol) -> Self::Output {
@@ -546,9 +536,7 @@ where
         let pads = mode.pads(n_items_diff);
         let mut output: Vec<T> = std::iter::repeat_n(symbol, pads.left()).collect::<Vec<T>>();
         output.extend_from_slice(self);
-        output.extend_from_slice(&std::iter::repeat_n(symbol, pads.right()).collect::<Vec<T>>());
-
-        output.shrink_to_fit();
+        output.resize(width, symbol);
         output
     }
 
@@ -573,7 +561,6 @@ where
     /// let s: &[u8] = &[0, 1, 2, 4, 8];
     /// let o = s.pad(7, Alignment::Left, 255u8);
     /// assert_eq!(Vec::from(&[0u8, 1, 2, 4, 8, 255, 255]), o);
-    /// assert_eq!(7, o.capacity());
     /// assert_eq!(7, o.len());
     /// ```
     fn pad_to_buffer(
@@ -597,8 +584,7 @@ where
         let pads = mode.pads(n_items_diff);
         buffer.extend_from_slice(&std::iter::repeat_n(symbol, pads.left()).collect::<Vec<T>>());
         buffer.extend_from_slice(self);
-        buffer.extend_from_slice(&std::iter::repeat_n(symbol, pads.right()).collect::<Vec<T>>());
-        buffer.shrink_to_fit();
+        buffer.resize(width, symbol);
     }
 }
 
@@ -723,7 +709,6 @@ mod tests_str {
         source.pad_to_buffer(width, Alignment::Center, 'ツ', &mut buffer);
         let expected = String::from("godwyn");
         assert_eq!(expected, buffer);
-        assert_eq!(expected.capacity(), buffer.capacity());
         assert_eq!(expected.len(), buffer.len());
     }
 }
@@ -775,7 +760,6 @@ mod tests_string {
         let output: String = source.pad(width, Alignment::Right, '|');
         let expected = String::from("3y");
         assert_eq!(expected, output);
-        assert_eq!(expected.capacity(), output.capacity());
         assert_eq!(expected.len(), output.len());
     }
     #[test]
@@ -827,7 +811,6 @@ mod tests_string {
         let mut expected = String::with_capacity(width);
         expected.push_str("mount gelmir....");
         assert_eq!(expected.len(), buffer.len());
-        assert_eq!(expected.capacity(), buffer.capacity());
         assert_eq!(expected, buffer);
     }
 
@@ -840,7 +823,6 @@ mod tests_string {
         let mut expected = String::with_capacity(width);
         expected.push_str(";;;;mount gelmir");
         assert_eq!(expected.len(), buffer.len());
-        assert_eq!(expected.capacity(), buffer.capacity());
         assert_eq!(expected, buffer);
     }
 
@@ -853,7 +835,6 @@ mod tests_string {
         let mut expected = String::with_capacity(width);
         expected.push_str("--mount gelmir--");
         assert_eq!(expected.len(), buffer.len());
-        assert_eq!(expected.capacity(), buffer.capacity());
         assert_eq!(expected, buffer);
     }
 
@@ -866,7 +847,6 @@ mod tests_string {
         let mut expected = String::with_capacity(width);
         expected.push_str("--mount gelmir---");
         assert_eq!(expected.len(), buffer.len());
-        assert_eq!(expected.capacity(), buffer.capacity());
         assert_eq!(expected, buffer);
     }
 
@@ -878,7 +858,6 @@ mod tests_string {
         source.pad_to_buffer(width, Alignment::Right, ';', &mut buffer);
         let expected = String::from("gelmir");
         assert_eq!(expected.len(), buffer.len());
-        assert_eq!(expected.capacity(), buffer.capacity());
         assert_eq!(expected, buffer);
     }
 
@@ -890,7 +869,6 @@ mod tests_string {
         source.pad_to_buffer(width, Alignment::Right, ';', &mut buffer);
         let expected = String::from("mount„gelmir");
         assert_eq!(expected.len(), buffer.len());
-        assert_eq!(expected.capacity(), buffer.capacity());
         assert_eq!(expected, buffer);
     }
 }
@@ -976,7 +954,6 @@ mod tests_vec {
         let source = Vec::from(&[190u8, 1, 98, 190]);
         let output = source.pad(width, Alignment::Center, 123u8);
         assert_eq!(expected.len(), output.len());
-        assert_eq!(expected.capacity(), output.capacity());
         assert_eq!(expected, output);
     }
 
@@ -999,7 +976,6 @@ mod tests_vec {
         let mut expected = Vec::with_capacity(width);
         expected.extend_from_slice(&[1u8, 0, 1, 9, 9]);
         assert_eq!(expected.len(), buffer.len());
-        assert_eq!(expected.capacity(), buffer.capacity());
         assert_eq!(expected, buffer);
     }
 
@@ -1012,7 +988,6 @@ mod tests_vec {
         let mut expected = Vec::with_capacity(width);
         expected.extend_from_slice(&[254u8, 254, 254, 1, 0, 1]);
         assert_eq!(expected.len(), buffer.len());
-        assert_eq!(expected.capacity(), buffer.capacity());
         assert_eq!(expected, buffer);
     }
 
@@ -1025,7 +1000,6 @@ mod tests_vec {
         let mut expected = Vec::with_capacity(width);
         expected.extend_from_slice(&[1u8, 0, 1, 2, 148]);
         assert_eq!(expected.len(), buffer.len());
-        assert_eq!(expected.capacity(), buffer.capacity());
         assert_eq!(expected, buffer);
     }
 
@@ -1038,7 +1012,6 @@ mod tests_vec {
         let mut expected = Vec::with_capacity(width);
         expected.extend_from_slice(&[148u8, 1, 0, 1, 2, 148]);
         assert_eq!(expected.len(), buffer.len());
-        assert_eq!(expected.capacity(), buffer.capacity());
         assert_eq!(expected, buffer);
     }
 
@@ -1050,7 +1023,6 @@ mod tests_vec {
         source.pad_to_buffer(width, Alignment::Center, 148u8, &mut buffer);
         let expected = Vec::from(&[0u8, 1]);
         assert_eq!(expected.len(), buffer.len());
-        assert_eq!(expected.capacity(), buffer.capacity());
         assert_eq!(expected, buffer);
     }
 
@@ -1062,7 +1034,6 @@ mod tests_vec {
         source.pad_to_buffer(width, Alignment::Center, 148u8, &mut buffer);
         let expected = Vec::from(&[1u8, 0, 1, 2]);
         assert_eq!(expected.len(), buffer.len());
-        assert_eq!(expected.capacity(), buffer.capacity());
         assert_eq!(expected, buffer);
     }
 }
@@ -1087,7 +1058,6 @@ mod tests_slice {
             DummyStruct { a: 4, b: 5 },
             DummyStruct { a: 4, b: 5 },
         ]);
-        assert_eq!(expected.capacity(), output.capacity());
         assert_eq!(expected.len(), output.len());
         assert_eq!(expected, output);
     }
@@ -1102,7 +1072,6 @@ mod tests_slice {
             DummyStruct { a: 4, b: 5 },
             DummyStruct { a: 2, b: 3 },
         ]);
-        assert_eq!(expected.capacity(), output.capacity());
         assert_eq!(expected.len(), output.len());
         assert_eq!(expected, output);
     }
@@ -1117,7 +1086,6 @@ mod tests_slice {
             DummyStruct { a: 2, b: 3 },
             DummyStruct { a: 4, b: 5 },
         ]);
-        assert_eq!(expected.capacity(), output.capacity());
         assert_eq!(expected.len(), output.len());
         assert_eq!(expected, output);
     }
@@ -1133,7 +1101,6 @@ mod tests_slice {
             DummyStruct { a: 4, b: 5 },
             DummyStruct { a: 4, b: 5 },
         ]);
-        assert_eq!(expected.capacity(), output.capacity());
         assert_eq!(expected.len(), output.len());
         assert_eq!(expected, output);
     }
@@ -1145,7 +1112,6 @@ mod tests_slice {
         let output = source.pad(width, Alignment::Left, DummyStruct { a: 13, b: 98 });
         let expected: Vec<DummyStruct> = Vec::with_capacity(0);
         assert_eq!(expected, output);
-        assert_eq!(expected.capacity(), output.capacity());
         assert_eq!(expected.len(), output.len());
     }
 
@@ -1156,7 +1122,6 @@ mod tests_slice {
         let output = source.pad(width, Alignment::Left, DummyStruct { a: 13, b: 98 });
         let expected: Vec<DummyStruct> = Vec::from(&[DummyStruct { a: 2, b: 3 }]);
         assert_eq!(expected, output);
-        assert_eq!(expected.capacity(), output.capacity());
         assert_eq!(expected.len(), output.len());
     }
 
@@ -1168,7 +1133,6 @@ mod tests_slice {
         source.pad_to_buffer(width, Alignment::Left, ' ', &mut buffer);
         let expected = Vec::from(&['a']);
         assert_eq!(expected, buffer);
-        assert_eq!(expected.capacity(), buffer.capacity());
         assert_eq!(expected.len(), buffer.len());
     }
 
@@ -1180,7 +1144,6 @@ mod tests_slice {
         source.pad_to_buffer(width, Alignment::Right, ' ', &mut buffer);
         let expected = Vec::from(&['c']);
         assert_eq!(expected, buffer);
-        assert_eq!(expected.capacity(), buffer.capacity());
         assert_eq!(expected.len(), buffer.len());
     }
 
@@ -1192,7 +1155,6 @@ mod tests_slice {
         source.pad_to_buffer(width, Alignment::Center, ' ', &mut buffer);
         let expected = Vec::from(&['b']);
         assert_eq!(expected, buffer);
-        assert_eq!(expected.capacity(), buffer.capacity());
         assert_eq!(expected.len(), buffer.len());
     }
 
@@ -1204,7 +1166,6 @@ mod tests_slice {
         source.pad_to_buffer(width, Alignment::Center, ' ', &mut buffer);
         let expected = Vec::from(&['a', 'b', 'c']);
         assert_eq!(expected, buffer);
-        assert_eq!(expected.capacity(), buffer.capacity());
         assert_eq!(expected.len(), buffer.len());
     }
 }
