@@ -29,7 +29,7 @@ pad and format directly into preallocated buffers.
 
 ## Installation
 
-Add to you project with Cargo:
+Add to your project with Cargo:
 
 ```
 cargo add padder
@@ -40,6 +40,9 @@ cargo add padder
 
 
 ## Usage
+
+Simply bring the desired trait into scope in your project.
+
 
 ### Immutable padding
 
