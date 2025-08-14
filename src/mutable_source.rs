@@ -48,7 +48,6 @@ impl MutableSource for &mut String {
     /// (&mut s).pad(width, Alignment::Center, '¡');  // "¡Visa Vid Vindens Ängar¡¡"
     ///
     /// assert_eq!(25, s.chars().count());
-    /// assert_eq!(23 + 2 * 3, s.capacity());  // '¡' = 2 bytes & 'Ä' = 2 bytes
     /// ```
     /// [`insert()`]: String::insert()
     #[cfg(not(feature = "enable_unsafe"))]
@@ -94,7 +93,6 @@ impl MutableSource for &mut String {
                     self.truncate(ed_byte - st_byte);
                 }
             };
-            self.shrink_to_fit();
             return;
         }
 
@@ -108,8 +106,6 @@ impl MutableSource for &mut String {
 
         new_s.push_str(self);
         new_s.push_str(&std::iter::repeat_n(symbol, pads.right()).collect::<String>());
-
-        new_s.shrink_to_fit();
         **self = new_s;
     }
 
@@ -141,10 +137,8 @@ impl MutableSource for &mut String {
     /// (&mut s).pad(width, Alignment::Right, '-');  // "----sackboy
     ///
     /// let mut expected = String::from("----sackboy");
-    /// expected.shrink_to_fit();
     ///
     /// assert_eq!(11, s.chars().count());
-    /// assert_eq!(11, s.capacity());
     /// assert_eq!(expected.len(), s.len());
     /// assert_eq!(expected, s);
     /// ```
@@ -196,7 +190,6 @@ impl MutableSource for &mut String {
                     self.truncate(ed_byte - st_byte);
                 }
             }
-            self.shrink_to_fit();
             return;
         }
 
@@ -273,7 +266,6 @@ where
     ///     DummyStruct { a: 1, b: false },
     ///     DummyStruct { a: 15, b: false },
     /// ]);
-    /// v.shrink_to_fit();
     ///
     /// let width: usize = 7;
     /// (&mut v).pad(width, Alignment::Right, DummyStruct { a: 1337, b: true });
@@ -287,10 +279,8 @@ where
     ///     DummyStruct { a: 1, b: false },
     ///     DummyStruct { a: 15, b: false },
     /// ]);
-    /// expected.shrink_to_fit();
     ///
     /// assert_eq!(expected.len(), v.len());
-    /// assert_eq!(expected.capacity(), v.capacity());
     /// assert_eq!(expected, v);
     ///
     /// // we can modify the original vec again!
@@ -318,7 +308,6 @@ where
                     self.truncate(width);
                 }
             }
-            self.shrink_to_fit();
             return;
         }
 
@@ -331,9 +320,7 @@ where
         let mut new_v: Vec<T> = std::iter::repeat_n(symbol, pads.left()).collect();
 
         new_v.extend_from_slice(self);
-        new_v.extend_from_slice(&std::iter::repeat_n(symbol, pads.right()).collect::<Vec<T>>());
-
-        new_v.shrink_to_fit();
+        new_v.resize(width, symbol);
         **self = new_v;
     }
 }
@@ -348,7 +335,6 @@ mod tests_string {
         let mut source = String::from("Vilhelm Moberg");
         (&mut source).pad(width, Alignment::Left, '@');
         let expected = String::from("Vilhelm Moberg@@@");
-        assert_eq!(expected.capacity(), source.capacity());
         assert_eq!(expected.len(), source.len());
         assert_eq!(expected, source);
     }
@@ -359,7 +345,6 @@ mod tests_string {
         let mut source = String::from("rocketTT");
         (&mut source).pad(width, Alignment::Right, '🚀');
         let expected = String::from("🚀🚀🚀🚀rocketTT");
-        assert_eq!(expected.capacity(), source.capacity());
         assert_eq!(expected.len(), source.len());
         assert_eq!(expected, source);
     }
@@ -370,7 +355,6 @@ mod tests_string {
         let mut source = String::from("plant");
         (&mut source).pad(width, Alignment::Center, 'き');
         let expected = String::from("きplantきき");
-        assert_eq!(expected.capacity(), source.capacity());
         assert_eq!(expected.len(), source.len());
         assert_eq!(expected, source);
     }
@@ -381,7 +365,6 @@ mod tests_string {
         let mut source = String::from("實real實");
         (&mut source).pad(width, Alignment::Center, '實');
         let expected = String::from("實實實實實實real實實實實實實");
-        assert_eq!(expected.capacity(), source.capacity());
         assert_eq!(expected.len(), source.len());
         assert_eq!(expected, source);
     }
@@ -392,7 +375,6 @@ mod tests_string {
         let mut source = String::from("實real實");
         (&mut source).pad(width, Alignment::Left, '實');
         let expected = String::from("實re");
-        assert_eq!(expected.capacity(), source.capacity());
         assert_eq!(expected.len(), source.len());
         assert_eq!(expected, source);
     }
@@ -403,7 +385,6 @@ mod tests_string {
         let mut source = String::from("實real實");
         (&mut source).pad(width, Alignment::Right, '實');
         let expected = String::from("real實");
-        assert_eq!(expected.capacity(), source.capacity());
         assert_eq!(expected.len(), source.len());
         assert_eq!(expected, source);
     }
@@ -414,7 +395,6 @@ mod tests_string {
         let mut source = String::from("實vamos實carlito實");
         (&mut source).pad(width, Alignment::Center, '實');
         let expected = String::from("os實car");
-        assert_eq!(expected.capacity(), source.capacity());
         assert_eq!(expected.len(), source.len());
         assert_eq!(expected, source);
     }
@@ -425,7 +405,6 @@ mod tests_string {
         let mut source = String::from("實vamos實carlito實");
         (&mut source).pad(width, Alignment::Center, '實');
         let expected = String::from("os實carl");
-        assert_eq!(expected.capacity(), source.capacity());
         assert_eq!(expected.len(), source.len());
         assert_eq!(expected, source);
     }
@@ -441,7 +420,6 @@ mod tests_vec {
         let mut source: Vec<u32> = Vec::from(&[1u32, 2, 3]);
         (&mut source).pad(width, Alignment::Left, 1337);
         let expected: Vec<u32> = Vec::from(&[1u32, 2, 3, 1337]);
-        assert_eq!(expected.capacity(), source.capacity());
         assert_eq!(expected.len(), source.len());
         assert_eq!(expected, source);
     }
@@ -452,7 +430,6 @@ mod tests_vec {
         let mut source: Vec<i32> = Vec::from(&[1i32, 2, 3]);
         (&mut source).pad(width, Alignment::Right, -1998);
         let expected: Vec<i32> = Vec::from(&[-1998i32, -1998, -1998, 1, 2, 3]);
-        assert_eq!(expected.capacity(), source.capacity());
         assert_eq!(expected.len(), source.len());
         assert_eq!(expected, source);
     }
@@ -463,7 +440,6 @@ mod tests_vec {
         let mut source: Vec<char> = Vec::from(&['😺', '2', '¡']);
         (&mut source).pad(width, Alignment::Center, '🐛');
         let expected: Vec<char> = Vec::from(&['🐛', '😺', '2', '¡', '🐛', '🐛']);
-        assert_eq!(expected.capacity(), source.capacity());
         assert_eq!(expected.len(), source.len());
         assert_eq!(expected, source);
     }
@@ -474,7 +450,6 @@ mod tests_vec {
         let mut source: Vec<char> = Vec::from(&['😺', '2', '¡']);
         (&mut source).pad(width, Alignment::Center, '🐛');
         let expected: Vec<char> = Vec::from(&['🐛', '🐛', '😺', '2', '¡', '🐛', '🐛']);
-        assert_eq!(expected.capacity(), source.capacity());
         assert_eq!(expected.len(), source.len());
         assert_eq!(expected, source);
     }
@@ -485,7 +460,6 @@ mod tests_vec {
         let mut source: Vec<char> = Vec::from(&['😺', '2', '¡']);
         (&mut source).pad(width, Alignment::Left, ' ');
         let expected: Vec<char> = Vec::from(&['😺', '2']);
-        assert_eq!(expected.capacity(), source.capacity());
         assert_eq!(expected.len(), source.len());
         assert_eq!(expected, source);
     }
@@ -512,7 +486,6 @@ mod tests_vec {
             DummyStruct { a: true },
         ]);
 
-        assert_eq!(expected.capacity(), source.capacity());
         assert_eq!(expected.len(), source.len());
         assert_eq!(expected, source);
     }
@@ -536,7 +509,6 @@ mod tests_vec {
             "beethoven",
             "mozart",
         ]);
-        assert_eq!(expected.capacity(), source.capacity());
         assert_eq!(expected.len(), source.len());
         assert_eq!(expected, source);
     }
@@ -561,7 +533,6 @@ mod tests_vec {
             "mozart",
             "chopin",
         ]);
-        assert_eq!(expected.capacity(), source.capacity());
         assert_eq!(expected.len(), source.len());
         assert_eq!(expected, source);
     }
